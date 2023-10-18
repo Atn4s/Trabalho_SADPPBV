@@ -1,23 +1,29 @@
 import sqlite3
 import hashlib
-import jwt
+import os
 
-def gerar_usuario():
-    con = sqlite3.connect('project_data.db')
-    cur = con.cursor()
+# Verificar se o arquivo project_data.db já existe
+if not os.path.exists('project_data.db'):
+    # Se não existir, chame o script Tables.py para criar as tabelas
+    os.system('python3 Tables.py')
+else:
 
-    nome = "João Paulo"
-    registro = "25000"
-    email = "joaop@mail.com"
-    senha = hashlib.sha512("joaopaulo123".encode()).hexdigest()  # Senha 'joaopaulo123' em SHA-512
-    tipo_usuario = 1  # 1 para o usuário administrador
+    def gerar_usuario():
+    
+        con = sqlite3.connect('project_data.db')
+        cur = con.cursor()
 
-    cur.execute("INSERT INTO usuario (nome, registro, email, senha, tipo_usuario) VALUES (?, ?, ?, ?, ?)",
-                (nome, registro, email, senha, tipo_usuario))
+        nome = "João Paulo"
+        registro = "25000"
+        email = "joaop@mail.com"
+        senha = hashlib.md5("joaopaulo123".encode()).hexdigest()  # Senha 'joaopaulo123' em MD5
+        tipo_usuario = 1  # 1 para o usuário administrador
 
-    con.commit()
-    con.close()
+        cur.execute("INSERT INTO usuario (nome, registro, email, senha, tipo_usuario) VALUES (?, ?, ?, ?, ?)",
+                    (nome, registro, email, senha, tipo_usuario))
 
+        con.commit()
+        con.close()
 
-if __name__ == '__main__':
-    gerar_usuario()
+    if __name__ == '__main__':
+        gerar_usuario()
