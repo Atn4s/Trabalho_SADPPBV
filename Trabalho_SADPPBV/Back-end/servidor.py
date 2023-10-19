@@ -1,3 +1,5 @@
+# CUIDADO COM CORSE! VERIFICAR RETORNOS 
+
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity 
 from datetime import timedelta
@@ -6,10 +8,11 @@ import sqlite3
 import sys
 import secrets
 import Tables
-
+from flask_cors import CORS
 
 key = secrets.token_hex(32)
 app = Flask('SADPPBV')
+CORS(app)  # Isso habilitará CORS para todas as rotas
 app.config['JWT_SECRET_KEY'] = key
 jwt = JWTManager(app)
 
@@ -37,14 +40,14 @@ def login():
     senha = request.json.get('senha', None)
 
     if not registro or not senha:
-        return jsonify({"message": "Usuário ou senha incorretos"}), 401
+        return jsonify({"success": False, "message": "Credenciais inválidas"}), 401
 
     current_user = authenticate_user(registro, senha)
     if not current_user:
-        return jsonify({"message": "Usuário não encontrado"}), 401
+        return jsonify({"success": False, "message": "Credenciais inválidas"}), 401
 
     access_token = create_access_token(identity=current_user)
-    return jsonify(access_token=access_token), 200
+    return jsonify({"success": True, "message": "Login bem-sucedido", "access_token": access_token}), 200
 
 @app.route('/logout', methods=['POST'])
 @jwt_required()
@@ -58,7 +61,7 @@ def fazer_logout():
 
     return jsonify({"success": True, "message": "Logout bem-sucedido"}), 200
 
-@app.route('/usuario', methods=['POST'])
+@app.route('/usuarios', methods=['POST'])
 @jwt_required()
 def cadastrar_usuario():
     current_user = get_jwt_identity()
@@ -77,6 +80,24 @@ def cadastrar_usuario():
 
     return jsonify({"message": "Novo usuário cadastrado com sucesso."}), 200
 
+@app.route('/usuarios', methods=['GET'])
+@jwt_required()
+def get_usuario():
+    current_user = get_jwt_identity()
+    conn = sqlite3.connect('project_data.db')
+    cursor = conn.cursor()
+
+    if current_user['tipo_usuario'] == 1:  # Se o usuário for um administrador
+        cursor.execute("SELECT * FROM usuario")
+        data = cursor.fetchall()
+        usuarios = [{'nome': row[1], 'registro': row[2], 'email': row[3], 'tipo_usuario': row[5]} for row in data]
+    else:  # Se não for um administrador, traga apenas as informações do usuário atual
+        cursor.execute("SELECT * FROM usuario WHERE registro=?", (current_user['registro'],))
+        data = cursor.fetchone()
+        usuarios = [{'nome': data[1], 'registro': data[2], 'email': data[3], 'tipo_usuario': data[5]}]
+
+    conn.close()
+    return jsonify({'usuarios': usuarios})
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -84,4 +105,4 @@ if __name__ == '__main__':
     else:
         port = 5000
 
-    app.run(debug=True, port=port)
+    app.run(debug=True, port=port, host='0.0.0.0')
