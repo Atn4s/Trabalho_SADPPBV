@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Front End</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #options {
+            display: none;
+            margin-top: 20px;
+        }
+
+        button {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="options">
+        <button id="logoutButton" onclick="fazerLogout()" disabled>Logout</button>
+        <button id="listUsersButton" onclick="listarUsuarios()" disabled>Listar Usuários</button>
+        <button id="createUserButton" onclick="criarUsuario()" disabled>Cadastrar Usuário</button>
+    </div>
+
+    <script>
+        const IP = prompt('Digite o IP do servidor:');
+        const PORT = prompt('Digite a porta do servidor:');
+        let access_token = '';
+
+        const login = function () {
+            const registro = prompt('Digite o registro:');
+            const senha = prompt('Digite a senha:');
+
+            $.ajax({
+                url: `http://${IP}:${PORT}/login`,
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    registro: registro,
+                    senha: senha
+                }),
+                success: function (response) {
+                    console.log(response);
+                    access_token = response.access_token;
+                    document.getElementById('options').style.display = 'block';
+                    enableButtons();
+                },
+                error: function (error) {
+                    console.error(error);
+                }
+            });
+        };
+
+        function enableButtons() {
+            if (access_token) {
+                document.getElementById('logoutButton').removeAttribute('disabled');
+                document.getElementById('listUsersButton').removeAttribute('disabled');
+                document.getElementById('createUserButton').removeAttribute('disabled');
+            }
+        }
+
+        function fazerLogout() {
+            $.ajax({
+                url: `http://${IP}:${PORT}/logout`,
+                type: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${access_token}`
+                },
+                success: function (response) {
+                    console.log(response);
+                },
+                error: function (error) {
+                    console.error(error);
+                }
+            });
+        }
+
+        function listarUsuarios() {
+            $.ajax({
+                url: `http://${IP}:${PORT}/usuarios`,
+                type: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${access_token}`
+                },
+                success: function (response) {
+                    console.log(response);
+                    // Seu código de manipulação de resposta aqui
+                },
+                error: function (error) {
+                    console.error(error);
+                }
+            });
+        }
+
+        function criarUsuario() {
+            const nome = prompt('Digite o nome do usuário:');
+            const registro = prompt('Digite o registro do usuário:');
+            const email = prompt('Digite o e-mail do usuário:');
+            const senha = prompt('Digite a senha do usuário:');
+            const tipo_usuario = prompt('Digite o tipo de usuário (1 para administrador, 0 para usuário comum):');
+
+            const novoUsuario = {
+                nome: nome,
+                registro: registro,
+                email: email,
+                senha: senha,
+                tipo_usuario: parseInt(tipo_usuario)
+            };
+
+            $.ajax({
+                url: `http://${IP}:${PORT}/usuarios`,
+                type: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${access_token}`
+                },
+                contentType: 'application/json',
+                data: JSON.stringify(novoUsuario),
+                success: function (response) {
+                    console.log(response);
+                },
+                error: function (error) {
+                    console.error(error);
+                }
+            });
+        }
+
+        login();
+    </script>
+
+</body>
+
+</html>
+
