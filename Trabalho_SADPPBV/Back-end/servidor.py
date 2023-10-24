@@ -1,36 +1,31 @@
-# CUIDADO COM CORSE! VERIFICAR RETORNOS 
-
-from flask import Flask, request, jsonify
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity 
-from datetime import timedelta
 import hashlib
 import sqlite3
 import sys
 import secrets
-import Tables
+from datetime import timedelta
+from flask import Flask, request, jsonify
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from flask_cors import CORS
 from functools import wraps
+import Tables
 
-key = secrets.token_hex(32)
+# Configurações do aplicativo Flask
 app = Flask('SADPPBV')
-CORS(app)  # Isso habilitará CORS para todas as rotas
-app.config['JWT_SECRET_KEY'] = key
-jwt = JWTManager(app)
+CORS(app)  # Habilita CORS para todas as rotas
 
+# Configurações JWT
+key = secrets.token_hex(32)
+app.config['JWT_SECRET_KEY'] = key
 app.config['JWT_BLACKLIST_ENABLED'] = True
 app.config['JWT_BLACKLIST_TOKEN_CHECKS'] = ['access', 'refresh']
 ACCESS_EXPIRES = timedelta(hours=1)
 revoked_tokens = set()
+jwt = JWTManager(app)
 
+# Inicializar base de dados (Tables.py)
 Tables.initialize_database()
 
-#     _         _             _   _                           
-#    / \  _   _| |_ ___ _ __ | |_(_) ___ __ _  ___ __ _  ___  
-#   / _ \| | | | __/ _ \ '_ \| __| |/ __/ _` |/ __/ _` |/ _ \ 
-#  / ___ \ |_| | ||  __/ | | | |_| | (_| (_| | (_| (_| | (_) |
-# /_/   \_\__,_|\__\___|_| |_|\__|_|\___\__,_|\___\__,_|\___/ 
-#                                                            
-                              
+# Autenticação do usuário!                                                                              
 def authenticate_user(registro, senha):
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
@@ -42,7 +37,8 @@ def authenticate_user(registro, senha):
             return {'user_id': user[0], 'tipo_usuario': user[2]}
     return None
 
-def jwt_required_with_token_check(f):
+# Verificação Token JWT
+def verify_token(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
@@ -51,20 +47,18 @@ def jwt_required_with_token_check(f):
                 access_token = auth_header.split(" ")[1]
                 if access_token in revoked_tokens:
                     return jsonify({'message': 'Não autenticado. Faça login novamente.', 'success': False}), 401
-            return f(*args, **kwargs)
+                else:
+                    return jwt_required()(f)(*args, **kwargs)  # Verifica se o token é válido
+            else:
+                return jsonify({'message': 'Token de autenticação não encontrado', 'success': False}), 401
         except Exception as e:
             print(e)
             return jsonify({'message': 'Erro ao processar a solicitação', 'success': False}), 500
     return decorated_function
 
-#  _                _       
-# | |    ___   __ _(_)_ __  
-# | |   / _ \ / _` | | '_ \ 
-# | |__| (_) | (_| | | | | |
-# |_____\___/ \__, |_|_| |_|
-#             |___/   
-#
 
+
+# Login método POST
 @app.route('/login', methods=['POST'])
 def login():
     registro = request.json.get('registro', None)
@@ -80,22 +74,9 @@ def login():
     access_token = create_access_token(identity=current_user)
     return jsonify({"success": True, "message": "Login bem-sucedido", "access_token": access_token}), 200
 
-#  _                            _   
-# | |    ___   __ _  ___  _   _| |_ 
-# | |   / _ \ / _` |/ _ \| | | | __|
-# | |__| (_) | (_| | (_) | |_| | |_ 
-# |_____\___/ \__, |\___/ \__,_|\__|
-#             |___/  
-
-@jwt.token_in_blocklist_loader
-def check_if_token_in_blacklist(jwt_header, jwt_payload):
-    jti = jwt_payload['jti']
-    return jti in revoked_tokens
-
-
+# Logout método POST 
 @app.route('/logout', methods=['POST'])
-@jwt_required()
-@jwt_required_with_token_check
+@verify_token
 def fazer_logout():
     try:
         # Obtenha o token JWT da requisição
@@ -110,16 +91,9 @@ def fazer_logout():
         return jsonify({"success": False, "message": "Não autenticado"}), 401
 
 
-#                              _           
-#   _   _ ___ _   _  __ _ _ __(_) ___  ___ 
-#  | | | / __| | | |/ _` | '__| |/ _ \/ __|
-#  | |_| \__ \ |_| | (_| | |  | | (_) \__ \
-#   \__,_|___/\__,_|\__,_|_|  |_|\___/|___/
-#                    
-
+# Usuários método POST
 @app.route('/usuarios', methods=['POST'])
-@jwt_required()
-@jwt_required_with_token_check
+@verify_token
 def cadastrar_usuario():
     current_user = get_jwt_identity()
     if current_user and current_user['tipo_usuario'] == 1:  # Verifica se o tipo de usuário é 1 para administrador
@@ -140,10 +114,9 @@ def cadastrar_usuario():
     else:
         return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para realizar esta ação."}), 401
 
-
+# Usuários método GET
 @app.route('/usuarios', methods=['GET'])
-@jwt_required()
-@jwt_required_with_token_check
+@verify_token
 def get_usuario():
     current_user = get_jwt_identity()
     if current_user:
@@ -171,8 +144,7 @@ def get_usuario():
     else:
         return jsonify({'message': 'Não foi possível obter as informações do usuário', 'success': False}), 401
 
-
-
+# Servidor Flask
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         port = int(sys.argv[1])
