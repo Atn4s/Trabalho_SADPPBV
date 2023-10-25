@@ -19,9 +19,9 @@
 <body>
 
     <div id="options">
-        <button id="logoutButton" onclick="fazerLogout()" disabled>Logout</button>
-        <button id="listUsersButton" onclick="listarUsuarios()" disabled>Listar Usuários</button>
-        <button id="createUserButton" onclick="criarUsuario()" disabled>Cadastrar Usuário</button>
+        <button id="logoutButton" onclick="fazerLogout()">Logout</button>
+        <button id="listUsersButton" onclick="listarUsuarios()">Listar Usuários</button>
+        <button id="createUserButton" onclick="criarUsuario()">Cadastrar Usuário</button>
     </div>
 
     <script>
@@ -45,7 +45,6 @@
                     console.log(response);
                     access_token = response.access_token;
                     document.getElementById('options').style.display = 'block';
-                    enableButtons();
                 },
                 error: function (error) {
                     console.error(error);
@@ -53,18 +52,11 @@
             });
         };
 
-        function enableButtons() {
-            if (access_token) {
-                document.getElementById('logoutButton').removeAttribute('disabled');
-                document.getElementById('listUsersButton').removeAttribute('disabled');
-                document.getElementById('createUserButton').removeAttribute('disabled');
-            }
-        }
-
         function fazerLogout() {
             $.ajax({
                 url: `http://${IP}:${PORT}/logout`,
                 type: 'POST',
+                contentType: 'application/json',
                 headers: {
                     'Authorization': `Bearer ${access_token}`
                 },
@@ -75,24 +67,71 @@
                     console.error(error);
                 }
             });
+        }
+
+        let tableVisible = false; // Variável para controlar a visibilidade da tabela
+        let table; // Variável para a tabela
+
+        function toggleTable() {
+            table = document.getElementById('tableUsuarios');
+            if (tableVisible) {
+                table.style.display = 'none'; // Esconde a tabela se estiver visível
+                tableVisible = false;
+            } else {
+                table.style.display = 'block'; // Mostra a tabela se estiver oculta
+                tableVisible = true;
+            }
         }
 
         function listarUsuarios() {
             $.ajax({
                 url: `http://${IP}:${PORT}/usuarios`,
                 type: 'GET',
+                contentType: 'application/json',
                 headers: {
                     'Authorization': `Bearer ${access_token}`
                 },
                 success: function (response) {
                     console.log(response);
-                    // Seu código de manipulação de resposta aqui
+                    const usuarios = response.usuarios; // Supondo que 'usuarios' seja um array de objetos contendo informações dos usuários
+
+                    // Limpar a tabela antes de adicionar novos dados
+                    table = document.getElementById('tableUsuarios');
+                    if (table) {
+                        table.innerHTML = '';
+                    } else {
+                        table = document.createElement('table');
+                        table.id = 'tableUsuarios';
+                        document.body.appendChild(table);
+                    }
+
+                    // Adicionar os dados dos usuários à tabela
+                    const tableBody = document.createElement('tbody');
+                    for (let i = 0; i < usuarios.length; i++) {
+                        const usuario = usuarios[i];
+                        const row = tableBody.insertRow(i);
+
+                        const cell1 = row.insertCell(0);
+                        cell1.innerHTML = usuario.nome;
+
+                        const cell2 = row.insertCell(1);
+                        cell2.innerHTML = usuario.registro;
+
+                        const cell3 = row.insertCell(2);
+                        cell3.innerHTML = usuario.email;
+
+                        const cell4 = row.insertCell(3);
+                        cell4.innerHTML = usuario.tipo_usuario === 1 ? 'Administrador' : 'Usuário Comum';
+                    }
+                    table.appendChild(tableBody);
+                    toggleTable(); // Chama a função para alternar a visibilidade da tabela
                 },
                 error: function (error) {
                     console.error(error);
                 }
             });
         }
+
 
         function criarUsuario() {
             const nome = prompt('Digite o nome do usuário:');
@@ -112,10 +151,10 @@
             $.ajax({
                 url: `http://${IP}:${PORT}/usuarios`,
                 type: 'POST',
+                contentType: 'application/json',
                 headers: {
                     'Authorization': `Bearer ${access_token}`
                 },
-                contentType: 'application/json',
                 data: JSON.stringify(novoUsuario),
                 success: function (response) {
                     console.log(response);
