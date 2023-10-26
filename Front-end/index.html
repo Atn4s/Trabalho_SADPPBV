@@ -27,7 +27,7 @@
     <script>
         const IP = prompt('Digite o IP do servidor:');
         const PORT = prompt('Digite a porta do servidor:');
-        let access_token = '';
+        let token = '';
 
         const login = function () {
             const registro = prompt('Digite o registro:');
@@ -43,7 +43,7 @@
                 }),
                 success: function (response) {
                     console.log(response);
-                    access_token = response.access_token;
+                    token = response.token;
                     document.getElementById('options').style.display = 'block';
                 },
                 error: function (error) {
@@ -58,7 +58,7 @@
                 type: 'POST',
                 contentType: 'application/json',
                 headers: {
-                    'Authorization': `Bearer ${access_token}`
+                    'Authorization': `Bearer ${token}`
                 },
                 success: function (response) {
                     console.log(response);
@@ -89,7 +89,7 @@
                 type: 'GET',
                 contentType: 'application/json',
                 headers: {
-                    'Authorization': `Bearer ${access_token}`
+                    'Authorization': `Bearer ${token}`
                 },
                 success: function (response) {
                     console.log(response);
@@ -153,7 +153,7 @@
                 type: 'POST',
                 contentType: 'application/json',
                 headers: {
-                    'Authorization': `Bearer ${access_token}`
+                    'Authorization': `Bearer ${token}`
                 },
                 data: JSON.stringify(novoUsuario),
                 success: function (response) {
