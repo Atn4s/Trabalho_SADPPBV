@@ -11,7 +11,7 @@ import Tables
 
 # Configurações do aplicativo Flask
 app = Flask('SADPPBV')
-CORS(app)  # Habilita CORS para todas as rotas
+CORS(app, resources={r"/*": {"origins": "*"}})  # Configuração mais explícita do CORS para permitir todas as origens
 
 # Configurações JWT
 key = secrets.token_hex(32)
@@ -44,8 +44,8 @@ def verify_token(f):
         try:
             auth_header = request.headers.get('Authorization')
             if auth_header:
-                access_token = auth_header.split(" ")[1]
-                if access_token in revoked_tokens:
+                token = auth_header.split(" ")[1]
+                if token in revoked_tokens:
                     return jsonify({'message': 'Não autenticado. Faça login novamente.', 'success': False}), 401
                 else:
                     return jwt_required()(f)(*args, **kwargs)  # Verifica se o token é válido
@@ -58,7 +58,7 @@ def verify_token(f):
 
 
 
-# Login método POST
+# Login método POSTf
 @app.route('/login', methods=['POST'])
 def login():
     registro = request.json.get('registro', None)
@@ -71,8 +71,8 @@ def login():
     if not current_user:
         return jsonify({"success": False, "message": "Credenciais inválidas"}), 401
 
-    access_token = create_access_token(identity=current_user)
-    return jsonify({"success": True, "message": "Login bem-sucedido", "access_token": access_token}), 200
+    token = create_access_token(identity=current_user)
+    return jsonify({"success": True, "message": "Login bem-sucedido", "token": token}), 200
 
 # Logout método POST 
 @app.route('/logout', methods=['POST'])
@@ -81,10 +81,10 @@ def fazer_logout():
     try:
         # Obtenha o token JWT da requisição
         auth_header = request.headers.get('Authorization')
-        access_token = auth_header.split(" ")[1]  # Obtém o token do header de autorização
+        token = auth_header.split(" ")[1]  # Obtém o token do header de autorização
 
         # Adicione o token à lista de tokens revogados
-        revoked_tokens.add(access_token)
+        revoked_tokens.add(token)
 
         return jsonify({"success": True, "message": "Logout bem-sucedido"}), 200
     except:
@@ -98,7 +98,7 @@ def cadastrar_usuario():
     current_user = get_jwt_identity()
     if current_user and current_user['tipo_usuario'] == 1:  # Verifica se o tipo de usuário é 1 para administrador
         auth_header = request.headers.get('Authorization')
-        access_token = auth_header.split(" ")[1]  # Obtém o token do header de autorização
+        token = auth_header.split(" ")[1]  # Obtém o token do header de autorização
         
         new_user = request.json
         if not new_user:
