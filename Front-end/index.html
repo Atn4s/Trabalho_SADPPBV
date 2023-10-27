@@ -5,52 +5,125 @@
     <title>Front End</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
-        #options {
-            display: none;
-            margin-top: 20px;
+        #options,
+        #loginForm {
+            text-align: center;
+            width: auto;
+            height: auto;
+            padding: auto;
         }
 
         button {
             margin-right: 10px;
+        }
+
+        #loginForm img {
+            width: auto;
+            height: auto;
+        }
+
+        /* Estilo para a tabela de usuários */
+        #tableUsuarios {
+            padding-top: 2%;
+            margin: 0 auto; /* Centralizar a tabela horizontalmente */
+            border-collapse: collapse; /* Colapsar as bordas das células */
+            width: 50%; /* Definir a largura da tabela */
+        }
+
+        #tableUsuarios th,
+        #tableUsuarios td {
+            border: 1px solid black; /* Adicionar borda às células */
+            padding: 8px; /* Adicionar preenchimento interno às células */
+            text-align: left; /* Alinhar o texto à esquerda dentro das células */
+        }
+
+        #tableUsuarios th {
+            background-color: #f2f2f2; /* Adicionar cor de fundo para os cabeçalhos */
         }
     </style>
 </head>
 
 <body>
 
-    <div id="options">
+    <div id="loginForm">
+        <h1> Sistema SADPPBV</h1>
+        <h3> Um momento! Confirme suas credenciais para utilizar a plataforma!</h3>
+        <img src="password.jpg">
+        <form id="login">
+            <p> IP do Servidor <input type="text" id="ip" placeholder="192.168.0.0"> </p>
+            <p> PORTA do Servidor <input type="text" id="port" placeholder="21000"> </p>
+            <p> REGISTRO <input type="text" id="registro" placeholder="1234567890"> </p>
+            <p> SENHA <input type="password" id="senha" placeholder="*********"> </p>
+            <button type="submit">Login</button> <br>
+        </form>
+    </div>
+
+    <div id="options" style="display: none;">
         <button id="logoutButton" onclick="fazerLogout()">Logout</button>
         <button id="listUsersButton" onclick="listarUsuarios()">Listar Usuários</button>
         <button id="createUserButton" onclick="criarUsuario()">Cadastrar Usuário</button>
     </div>
 
     <script>
-        const IP = prompt('Digite o IP do servidor:');
-        const PORT = prompt('Digite a porta do servidor:');
-        let token = '';
+        let IP = localStorage.getItem('IP');
+        let PORT = localStorage.getItem('PORT');
+        let token = localStorage.getItem('token');
 
-        const login = function () {
-            const registro = prompt('Digite o registro:');
-            const senha = prompt('Digite a senha:');
 
-            $.ajax({
-                url: `http://${IP}:${PORT}/login`,
-                type: 'POST',
-                contentType: 'application/json',
-                data: JSON.stringify({
-                    registro: registro,
-                    senha: senha
-                }),
-                success: function (response) {
-                    console.log(response);
-                    token = response.token;
-                    document.getElementById('options').style.display = 'block';
-                },
-                error: function (error) {
-                    console.error(error);
-                }
-            });
-        };
+        if (token) {
+            $('#options').css('display', 'block');
+            $('#loginForm').css('display', 'none');
+        }
+
+        function clearFields() {
+            $('#ip').val('');
+            $('#port').val('');
+            $('#registro').val('');
+            $('#senha').val('');
+        }
+
+        if (IP && PORT) {
+            $('#options').css('display', 'block');
+            $('#loginForm').css('display', 'none');
+        }
+
+        $('#login').submit(function (event) {
+            event.preventDefault();
+            IP = $('#ip').val();
+            PORT = $('#port').val();
+
+            // Verificar se os campos de IP e PORT não estão vazios
+            if (IP && PORT) {
+                const registro = $('#registro').val();
+                const senha = $('#senha').val();
+
+                $.ajax({
+                    url: `http://${IP}:${PORT}/login`,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({
+                        registro: registro,
+                        senha: senha
+                    }),
+                    success: function (response) {
+                        console.log(response);
+                        token = response.token;
+                        localStorage.setItem('IP', IP);
+                        localStorage.setItem('PORT', PORT);
+                        localStorage.setItem('token', token);
+                        $('#options').css('display', 'block');
+                        $('#loginForm').css('display', 'none');
+                    },
+                    error: function (error) {
+                        console.error(error);
+                    }
+                });
+            } else {
+                // Lidar com campos vazios
+                console.error("IP e PORT devem ser preenchidos");
+            }
+        });
+
 
         function fazerLogout() {
             $.ajax({
@@ -62,6 +135,12 @@
                 },
                 success: function (response) {
                     console.log(response);
+                    clearFields();
+                    localStorage.removeItem('token'); // Remova o token do localStorage ao fazer logout
+                    localStorage.removeItem('IP'); // Remova o IP do localStorage ao fazer logout
+                    localStorage.removeItem('PORT'); // Remova o PORT do localStorage ao fazer logout
+                    $('#options').css('display', 'none');
+                    $('#loginForm').css('display', 'block');
                 },
                 error: function (error) {
                     console.error(error);
@@ -165,10 +244,8 @@
             });
         }
 
-        login();
     </script>
 
 </body>
 
 </html>
-
