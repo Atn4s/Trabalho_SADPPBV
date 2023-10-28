@@ -4,6 +4,7 @@
 <head>
     <title>Front End</title>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.18.0/js/md5.min.js"></script>
     <style>
         #options,
         #loginForm {
@@ -82,6 +83,14 @@
             $('#senha').val('');
         }
 
+        function clearTable() {
+            const table = document.getElementById('tableUsuarios');
+            if (table) {
+                table.innerHTML = '';
+            }
+        }
+
+
         if (IP && PORT) {
             $('#options').css('display', 'block');
             $('#loginForm').css('display', 'none');
@@ -95,7 +104,7 @@
             // Verificar se os campos de IP e PORT não estão vazios
             if (IP && PORT) {
                 const registro = $('#registro').val();
-                const senha = $('#senha').val();
+                const senha = md5($('#senha').val());
 
                 $.ajax({
                     url: `http://${IP}:${PORT}/login`,
@@ -136,6 +145,7 @@
                 success: function (response) {
                     console.log(response);
                     clearFields();
+                    clearTable(); // Limpa a tabela de usuários ao fazer logout
                     localStorage.removeItem('token'); // Remova o token do localStorage ao fazer logout
                     localStorage.removeItem('IP'); // Remova o IP do localStorage ao fazer logout
                     localStorage.removeItem('PORT'); // Remova o PORT do localStorage ao fazer logout
@@ -151,40 +161,39 @@
         let tableVisible = false; // Variável para controlar a visibilidade da tabela
         let table; // Variável para a tabela
 
-        function toggleTable() {
+        function toggleTable(show) {
             table = document.getElementById('tableUsuarios');
-            if (tableVisible) {
-                table.style.display = 'none'; // Esconde a tabela se estiver visível
-                tableVisible = false;
-            } else {
-                table.style.display = 'block'; // Mostra a tabela se estiver oculta
+            if (show) {
+                table.style.display = 'block'; // Mostra a tabela
                 tableVisible = true;
+            } else {
+                table.style.display = 'none'; // Esconde a tabela
+                tableVisible = false;
             }
         }
 
         function listarUsuarios() {
-            $.ajax({
-                url: `http://${IP}:${PORT}/usuarios`,
-                type: 'GET',
-                contentType: 'application/json',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                success: function (response) {
-                    console.log(response);
-                    const usuarios = response.usuarios; // Supondo que 'usuarios' seja um array de objetos contendo informações dos usuários
+        $.ajax({
+            url: `http://${IP}:${PORT}/usuarios`,
+            type: 'GET',
+            contentType: 'application/json',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            success: function (response) {
+                console.log(response);
+                if (response && (response.usuarios || response.usuario)) {
+                    const usuarios = response.usuarios ? response.usuarios : [response.usuario]; // Verifica se há vários usuários ou apenas um
 
-                    // Limpar a tabela antes de adicionar novos dados
+                    clearTable(); // Limpa a tabela antes de adicionar novos dados
+
                     table = document.getElementById('tableUsuarios');
-                    if (table) {
-                        table.innerHTML = '';
-                    } else {
+                    if (!table) {
                         table = document.createElement('table');
                         table.id = 'tableUsuarios';
                         document.body.appendChild(table);
                     }
 
-                    // Adicionar os dados dos usuários à tabela
                     const tableBody = document.createElement('tbody');
                     for (let i = 0; i < usuarios.length; i++) {
                         const usuario = usuarios[i];
@@ -203,46 +212,73 @@
                         cell4.innerHTML = usuario.tipo_usuario === 1 ? 'Administrador' : 'Usuário Comum';
                     }
                     table.appendChild(tableBody);
-                    toggleTable(); // Chama a função para alternar a visibilidade da tabela
-                },
-                error: function (error) {
-                    console.error(error);
+                    toggleTable(true); // Sempre mostra a tabela quando os usuários são listados
+                } else {
+                    console.error("Nenhum usuário encontrado.");
                 }
-            });
-        }
+            },
+            error: function (error) {
+                console.error(error);
+            }
+        });
+    }
 
+    function criarUsuario() {
+        $.ajax({
+            url: `http://${IP}:${PORT}/usuarios`,
+            type: 'GET',
+            contentType: 'application/json',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            success: function (response) {
+                console.log(response);
+                if (response && response.usuarios) {
+                    const usuarios = response.usuarios;
+                    const usuarioLogado = usuarios.find(user => user.id === 1); // Altere o ID para o ID do usuário logado
 
-        function criarUsuario() {
-            const nome = prompt('Digite o nome do usuário:');
-            const registro = prompt('Digite o registro do usuário:');
-            const email = prompt('Digite o e-mail do usuário:');
-            const senha = prompt('Digite a senha do usuário:');
-            const tipo_usuario = prompt('Digite o tipo de usuário (1 para administrador, 0 para usuário comum):');
+                    if (usuarioLogado && usuarioLogado.tipo_usuario === 1) {
+                        const nome = prompt('Digite o nome do usuário:');
+                        const registro = prompt('Digite o registro do usuário:');
+                        const email = prompt('Digite o e-mail do usuário:');
+                        const senha = prompt('Digite a senha do usuário:');
+                        const tipo_usuario = prompt('Digite o tipo de usuário (1 para administrador, 0 para usuário comum):');
 
-            const novoUsuario = {
-                nome: nome,
-                registro: registro,
-                email: email,
-                senha: senha,
-                tipo_usuario: parseInt(tipo_usuario)
-            };
+                        const novoUsuario = {
+                            nome: nome,
+                            registro: registro,
+                            email: email,
+                            senha: senha,
+                            tipo_usuario: parseInt(tipo_usuario)
+                        };
 
-            $.ajax({
-                url: `http://${IP}:${PORT}/usuarios`,
-                type: 'POST',
-                contentType: 'application/json',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                data: JSON.stringify(novoUsuario),
-                success: function (response) {
-                    console.log(response);
-                },
-                error: function (error) {
-                    console.error(error);
+                        $.ajax({
+                            url: `http://${IP}:${PORT}/usuarios`,
+                            type: 'POST',
+                            contentType: 'application/json',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            },
+                            data: JSON.stringify(novoUsuario),
+                            success: function (response) {
+                                console.log(response);
+                            },
+                            error: function (error) {
+                                console.error(error);
+                            }
+                        });
+                    } else {
+                        alert("Apenas administradores podem cadastrar usuários.");
+                    }
+                } else {
+                    alert("Apenas administradores podem cadastrar usuários.");
                 }
-            });
-        }
+            },
+            error: function (error) {
+                console.error(error);
+            }
+        });
+    }
 
     </script>
 
