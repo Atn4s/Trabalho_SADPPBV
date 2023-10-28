@@ -63,6 +63,7 @@
         <button id="logoutButton" onclick="fazerLogout()">Logout</button>
         <button id="listUsersButton" onclick="listarUsuarios()">Listar Usuários</button>
         <button id="createUserButton" onclick="criarUsuario()">Cadastrar Usuário</button>
+        <button id="searchUserButton" onclick="solicitarIDUsuario()">Buscar Usuário por ID</button>
     </div>
 
     <script>
@@ -74,6 +75,15 @@
         if (token) {
             $('#options').css('display', 'block');
             $('#loginForm').css('display', 'none');
+        }
+
+        function solicitarIDUsuario() {
+            const id = prompt('Digite o ID do usuário:');
+            if (id) {
+                listarUsuarioPorID(id);
+            } else {
+                alert("O ID do usuário não pode ser vazio.");
+            }
         }
 
         function clearFields() {
@@ -222,6 +232,38 @@
             }
         });
     }
+
+    function listarUsuarioPorID(id) {
+    if (token) {
+        $.ajax({
+            url: `http://${IP}:${PORT}/usuarios/${id}`,
+            type: 'GET',
+            contentType: 'application/json',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            success: function (response) {
+                console.log(response);
+                if (response && response.usuario) {
+                    const usuario = response.usuario;
+                        alert(`ID: ${usuario.id}\nNome: ${usuario.nome}\nRegistro: ${usuario.registro}\nEmail: ${usuario.email}\nTipo de Usuário: ${usuario.tipo_usuario === 1 ? 'Administrador' : 'Usuário Comum'}`);
+                } else {
+                    alert("Usuário não encontrado.");
+                }
+            },
+            error: function (error) {
+                if (error.status === 401) {
+                    alert("Precisa ser administrador para realizar esta ação.");
+                } else {
+                    console.error(error);
+                }
+            }
+        });
+    } else {
+        alert("Faça login para executar esta ação.");
+    }
+}
+
 
     function criarUsuario() {
         $.ajax({
