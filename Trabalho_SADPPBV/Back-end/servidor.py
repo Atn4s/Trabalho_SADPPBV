@@ -33,7 +33,7 @@ def authenticate_user(registro, senha):
     users = cursor.fetchall()
 
     for user in users:
-        if user and user[1] == hashlib.md5(senha.encode()).hexdigest():
+        if user and user[1] == senha:
             return {'user_id': user[0], 'tipo_usuario': user[2]}
     return None
 
@@ -106,13 +106,16 @@ def cadastrar_usuario():
 
         conn = sqlite3.connect('project_data.db')
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO usuario (nome, registro, email, senha, tipo_usuario) VALUES (?, ?, ?, ?, ?)",
-                       (new_user['nome'], new_user['registro'], new_user['email'], hashlib.md5(new_user['senha'].encode()).hexdigest(), new_user['tipo_usuario']))
-        conn.commit()
-
-        return jsonify({"success": True, "message": "Novo usuário cadastrado com sucesso."}), 200
+        try:
+            cursor.execute("INSERT INTO usuario (nome, registro, email, senha, tipo_usuario) VALUES (?, ?, ?, ?, ?)",
+                           (new_user['nome'], new_user['registro'], new_user['email'], hashlib.md5(new_user['senha'].encode()).hexdigest(), new_user['tipo_usuario']))
+            conn.commit()
+            return jsonify({"success": True, "message": "Novo usuário cadastrado com sucesso."}), 200
+        except sqlite3.IntegrityError as e:
+            return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 400
     else:
         return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para realizar esta ação."}), 401
+
 
 # Usuários método GET
 @app.route('/usuarios', methods=['GET'])
