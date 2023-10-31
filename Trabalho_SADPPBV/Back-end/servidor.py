@@ -56,9 +56,7 @@ def verify_token(f):
             return jsonify({'message': 'Erro ao processar a solicitação', 'success': False}), 500
     return decorated_function
 
-
-
-# Login método POSTf
+# Login método POST
 @app.route('/login', methods=['POST'])
 def login():
     registro = request.json.get('registro', None)
@@ -90,7 +88,6 @@ def fazer_logout():
     except:
         return jsonify({"success": False, "message": "Não autenticado"}), 401
 
-
 # Usuários método POST
 @app.route('/usuarios', methods=['POST'])
 @verify_token
@@ -115,7 +112,6 @@ def cadastrar_usuario():
             return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 400
     else:
         return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para realizar esta ação."}), 401
-
 
 # Usuários método GET
 @app.route('/usuarios', methods=['GET'])
@@ -148,25 +144,23 @@ def get_usuario():
         return jsonify({'message': 'Não foi possível obter as informações do usuário', 'success': False}), 401
 
 # Usuários método GET por ID
-@app.route('/usuarios/<int:user_id>', methods=['GET'])
+@app.route('/usuarios/<string:registro>', methods=['GET'])
 @verify_token
-def get_usuario_by_id(user_id):
+def get_usuario_by_registro(registro):
     current_user = get_jwt_identity()
     if current_user and current_user['tipo_usuario'] == 1:  # Verifica se o tipo de usuário é 1 para administrador
         conn = sqlite3.connect('project_data.db')
         cursor = conn.cursor()
-        cursor.execute("SELECT id, nome, registro, email, tipo_usuario FROM usuario WHERE id=?", (user_id,))
+        cursor.execute("SELECT id, nome, registro, email, tipo_usuario FROM usuario WHERE registro=?", (registro,))
         data = cursor.fetchone()
         if data:
             usuario = {'id': data[0], 'nome': data[1], 'registro': data[2], 'email': data[3], 'tipo_usuario': data[4]}
             conn.close()
             return jsonify({'usuario': usuario})
         else:
-            return jsonify({"success": False, "message": "O usuário com o ID especificado não foi encontrado."}), 404
+            return jsonify({"success": False, "message": "O usuário com o registro especificado não foi encontrado."}), 404
     else:
         return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para realizar esta ação."}), 401
-
-
 
 # Servidor Flask
 if __name__ == '__main__':
