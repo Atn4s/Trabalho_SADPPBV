@@ -48,8 +48,8 @@
 
     <div id="loginForm">
         <h1> Sistema SADPPBV</h1>
-        <h3> Um momento! Confirme suas credenciais para utilizar a plataforma!</h3>
-        <img src="password.jpg">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/8/85/Utfpr.gif">
+        <h3> Confirme suas credenciais para utilizar a plataforma!</h3>
         <form id="login">
             <p> IP do Servidor <input type="text" id="ip" placeholder="192.168.0.0"> </p>
             <p> PORTA do Servidor <input type="text" id="port" placeholder="21000"> </p>
@@ -133,13 +133,14 @@
                         $('#options').css('display', 'block');
                         $('#loginForm').css('display', 'none');
                     },
+                    // ESSE TA CORRETO MUDE PARA TODOS OS OUTROS!
                     error: function (error) {
-                        console.error(error);
-                    }
+                        const errorObject = JSON.parse(error.responseText);
+                        alert(errorObject.message);                    }
                 });
             } else {
                 // Lidar com campos vazios
-                console.error("IP e PORT devem ser preenchidos");
+                alert("IP e PORT devem ser preenchidos");
             }
         });
 
@@ -163,7 +164,8 @@
                     $('#loginForm').css('display', 'block');
                 },
                 error: function (error) {
-                    console.error(error);
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(error);
                 }
             });
         }
@@ -233,7 +235,7 @@
         });
     }
 
-    function listarUsuarioPorID(id) {
+function listarUsuarioPorID(id) {
     if (token) {
         $.ajax({
             url: `http://${IP}:${PORT}/usuarios/${id}`,
@@ -246,7 +248,34 @@
                 console.log(response);
                 if (response && response.usuario) {
                     const usuario = response.usuario;
-                        alert(`ID: ${usuario.id}\nNome: ${usuario.nome}\nRegistro: ${usuario.registro}\nEmail: ${usuario.email}\nTipo de Usuário: ${usuario.tipo_usuario === 1 ? 'Administrador' : 'Usuário Comum'}`);
+
+                    // Limpa a tabela antes de adicionar o usuário por ID
+                    clearTable();
+
+                    table = document.getElementById('tableUsuarios');
+                    if (!table) {
+                        table = document.createElement('table');
+                        table.id = 'tableUsuarios';
+                        document.body.appendChild(table);
+                    }
+
+                    const tableBody = document.createElement('tbody');
+                    const row = tableBody.insertRow(0);
+
+                    const cell1 = row.insertCell(0);
+                    cell1.innerHTML = usuario.nome;
+
+                    const cell2 = row.insertCell(1);
+                    cell2.innerHTML = usuario.registro;
+
+                    const cell3 = row.insertCell(2);
+                    cell3.innerHTML = usuario.email;
+
+                    const cell4 = row.insertCell(3);
+                    cell4.innerHTML = usuario.tipo_usuario === 1 ? 'Administrador' : 'Usuário Comum';
+
+                    table.appendChild(tableBody);
+                    toggleTable(true); // Sempre mostra a tabela quando um usuário é listado
                 } else {
                     alert("Usuário não encontrado.");
                 }
@@ -265,63 +294,38 @@
 }
 
 
-    function criarUsuario() {
-        $.ajax({
-            url: `http://${IP}:${PORT}/usuarios`,
-            type: 'GET',
-            contentType: 'application/json',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            success: function (response) {
-                console.log(response);
-                if (response && response.usuarios) {
-                    const usuarios = response.usuarios;
-                    const usuarioLogado = usuarios.find(user => user.id === 1); // Altere o ID para o ID do usuário logado
+function criarUsuario() {
+    const nome = prompt('Digite o nome do usuário:');
+    const registro = prompt('Digite o registro do usuário:');
+    const email = prompt('Digite o e-mail do usuário:');
+    const senha = prompt('Digite a senha do usuário:');
+    const tipo_usuario = prompt('Digite o tipo de usuário (1 para administrador, 0 para usuário comum):');
 
-                    if (usuarioLogado && usuarioLogado.tipo_usuario === 1) {
-                        const nome = prompt('Digite o nome do usuário:');
-                        const registro = prompt('Digite o registro do usuário:');
-                        const email = prompt('Digite o e-mail do usuário:');
-                        const senha = prompt('Digite a senha do usuário:');
-                        const tipo_usuario = prompt('Digite o tipo de usuário (1 para administrador, 0 para usuário comum):');
+    const novoUsuario = {
+        nome: nome,
+        registro: registro,
+        email: email,
+        senha: senha,
+        tipo_usuario: parseInt(tipo_usuario)
+    };
 
-                        const novoUsuario = {
-                            nome: nome,
-                            registro: registro,
-                            email: email,
-                            senha: senha,
-                            tipo_usuario: parseInt(tipo_usuario)
-                        };
+    $.ajax({
+        url: `http://${IP}:${PORT}/usuarios`,
+        type: 'POST',
+        contentType: 'application/json',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+        data: JSON.stringify(novoUsuario),
+        success: function (response) {
+            alert(JSON.stringify(response));
+        },
+        error: function (error) {
+            alert(JSON.stringify(error));
+        }
 
-                        $.ajax({
-                            url: `http://${IP}:${PORT}/usuarios`,
-                            type: 'POST',
-                            contentType: 'application/json',
-                            headers: {
-                                'Authorization': `Bearer ${token}`
-                            },
-                            data: JSON.stringify(novoUsuario),
-                            success: function (response) {
-                                console.log(response);
-                            },
-                            error: function (error) {
-                                console.error(error);
-                            }
-                        });
-                    } else {
-                        alert("Apenas administradores podem cadastrar usuários.");
-                    }
-                } else {
-                    alert("Apenas administradores podem cadastrar usuários.");
-                }
-            },
-            error: function (error) {
-                console.error(error);
-            }
-        });
-    }
-
+    });
+}
     </script>
 
 </body>
