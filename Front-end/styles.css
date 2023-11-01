@@ -1,0 +1,43 @@
+#options,
+#loginForm {
+    text-align: center;
+    width: auto;
+    height: auto;
+    padding: auto;
+}
+
+html{
+    background-color: black;
+    color: white;
+}
+
+body {
+    font-size: 16px;
+}
+
+button {
+    margin-right: 10px;
+}
+
+#loginForm img {
+    width: 55%;
+    height: 55%;
+}
+
+#tableUsuarios {
+    padding-top: 2%;
+    margin: 0 auto; 
+    border-collapse: collapse; 
+    width: 50%; 
+}
+
+#tableUsuarios th,
+#tableUsuarios td {
+    border: 1px solid white; 
+    padding: 8px; 
+    text-align: center; 
+}
+
+#tableUsuarios th {
+    background-color: white; 
+}
