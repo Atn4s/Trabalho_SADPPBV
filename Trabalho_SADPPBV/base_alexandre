@@ -1,9 +1,0 @@
-As tabelas do alexandre são essas:
-
-sqlite> .schem
-CREATE TABLE sqlite_sequence(name,seq);
-CREATE TABLE usuario (id INTEGER Primary key AUTOINCREMENT, nome VARCHAR(100), registro VARCHAR(7) NOT NULL UNIQUE, email VARCHAR(100), senha VARCHAR(150), tipo_usuario INTEGER);
-CREATE TABLE blacklist (id INTEGER Primary key AUTOINCREMENT, token TTL);
-CREATE TABLE rota (idrota INTEGER Primary key AUTOINCREMENT, nome_rota VARCHAR(100),inicio VARCHAR(50),fim VARCHAR(50));
-CREATE TABLE rotasegmento (id_rota INTEGER , id_segmento INTEGER, FOREIGN KEY(id_rota) REFERENCES rota(idrota),FOREIGN KEY(id_segmento) REFERENCES segmento(idsegmento),PRIMARY KEY(id_rota,id_segmento));
-CREATE TABLE segmento(idsegmento INTEGER Primary key AUTOINCREMENT, nome VARCHAR(100),distancia int, direcao VARCHAR(20),partida VARCHAR(50),chegada VARCHAR(50),ordem INTEGER,status BOOL);
