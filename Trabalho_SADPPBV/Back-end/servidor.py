@@ -26,14 +26,14 @@ jwt = JWTManager(app)
 Tables.initialize_database()
 
 # Autenticação do usuário!                                                                              
-def authenticate_user(registro, senha):
+def authenticate_user(registro, senha_hash_blake2b):
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
     cursor.execute("SELECT id, senha, tipo_usuario FROM usuario WHERE registro = ?", (registro,))
     users = cursor.fetchall()
 
     for user in users:
-        if user and user[1] == senha:
+        if user and user[1] == senha_hash_blake2b:
             return {'user_id': user[0], 'tipo_usuario': user[2]}
     return None
 
@@ -65,7 +65,8 @@ def login():
     if not registro or not senha:
         return jsonify({"success": False, "message": "Credenciais inválidas"}), 401
 
-    current_user = authenticate_user(registro, senha)
+    senha_hash_blake2b = hashlib.blake2b(senha.encode()).hexdigest()  # Criptografa a senha em MD5 novamente
+    current_user = authenticate_user(registro, senha_hash_blake2b)
     if not current_user:
         return jsonify({"success": False, "message": "Credenciais inválidas"}), 401
 
@@ -104,8 +105,9 @@ def cadastrar_usuario():
         conn = sqlite3.connect('project_data.db')
         cursor = conn.cursor()
         try:
+            senha_hash_blake2b = hashlib.blake2b(new_user['senha'].encode()).hexdigest()  # Criptografa a senha em MD5 novamente
             cursor.execute("INSERT INTO usuario (nome, registro, email, senha, tipo_usuario) VALUES (?, ?, ?, ?, ?)",
-                           (new_user['nome'], new_user['registro'], new_user['email'], hashlib.md5(new_user['senha'].encode()).hexdigest(), new_user['tipo_usuario']))
+                       (new_user['nome'], new_user['registro'], new_user['email'], senha_hash_blake2b, new_user['tipo_usuario']))
             conn.commit()
             return jsonify({"success": True, "message": "Novo usuário cadastrado com sucesso."}), 200
         except sqlite3.IntegrityError as e:
