@@ -136,7 +136,8 @@
                     // ESSE TA CORRETO MUDE PARA TODOS OS OUTROS!
                     error: function (error) {
                         const errorObject = JSON.parse(error.responseText);
-                        alert(errorObject.message);                    }
+                        alert(errorObject.message);                    
+                    }
                 });
             } else {
                 // Lidar com campos vazios
@@ -301,11 +302,13 @@ function criarUsuario() {
     const senha = prompt('Digite a senha do usuário:');
     const tipo_usuario = prompt('Digite o tipo de usuário (1 para administrador, 0 para usuário comum):');
 
+    const senhaMD5 = md5(senha);
+
     const novoUsuario = {
         nome: nome,
         registro: registro,
         email: email,
-        senha: senha,
+        senha: senhaMD5,
         tipo_usuario: parseInt(tipo_usuario)
     };
 
