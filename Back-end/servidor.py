@@ -34,8 +34,9 @@ def authenticate_user(registro, senha_hash_blake2b):
 
     for user in users:
         if user and user[1] == senha_hash_blake2b:
-            return {'user_id': user[0], 'tipo_usuario': user[2]}
+            return {'user_id': user[0], 'tipo_usuario': user[2], 'senha': senha_hash_blake2b}
     return None
+
 
 # Verificação Token JWT
 def verify_token(f):
@@ -70,7 +71,7 @@ def login():
     if not current_user:
         return jsonify({"success": False, "message": "Credenciais inválidas"}), 401
 
-    token = create_access_token(identity=current_user, expires_delta=ACCESS_EXPIRES)
+    token = create_access_token(identity={'user_id': current_user['user_id'], 'tipo_usuario': current_user['tipo_usuario'], 'senha': senha_hash_blake2b, 'registro': registro}, expires_delta=ACCESS_EXPIRES)
     return jsonify({"success": True, "message": "Login bem-sucedido", "token": token}), 200
 
 # Logout método POST 
@@ -145,24 +146,31 @@ def get_usuario():
     else:
         return jsonify({'message': 'Não foi possível obter as informações do usuário', 'success': False}), 401
 
-# Usuários método GET por ID
 @app.route('/usuarios/<string:registro>', methods=['GET'])
 @verify_token
 def get_usuario_by_registro(registro):
     current_user = get_jwt_identity()
-    if current_user and current_user['tipo_usuario'] == 1:  # Verifica se o tipo de usuário é 1 para administrador
-        conn = sqlite3.connect('project_data.db')
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, nome, registro, email, tipo_usuario FROM usuario WHERE registro=?", (registro,))
-        data = cursor.fetchone()
-        if data:
-            usuario = {'id': data[0], 'nome': data[1], 'registro': data[2], 'email': data[3], 'tipo_usuario': data[4]}
-            conn.close()
-            return jsonify({'usuario': usuario})
-        else:
-            return jsonify({"success": False, "message": "O usuário com o registro especificado não foi encontrado."}), 404
+    if current_user:
+        try:
+            if current_user['tipo_usuario'] == 1 or current_user['registro'] == registro:
+                conn = sqlite3.connect('project_data.db')
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, nome, registro, email, tipo_usuario FROM usuario WHERE registro=?", (registro,))
+                data = cursor.fetchone()
+                if data:
+                    usuario = {'id': data[0], 'nome': data[1], 'registro': data[2], 'email': data[3], 'tipo_usuario': data[4]}
+                    conn.close()
+                    return jsonify({'usuario': usuario})
+                else:
+                    return jsonify({"success": False, "message": "O usuário com o registro especificado não foi encontrado."}), 404
+            else:
+                return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para realizar esta ação."}), 401
+        except Exception as e:
+            return jsonify({'message': 'Erro ao processar a solicitação: {}'.format(str(e)), 'success': False}), 500
     else:
-        return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para realizar esta ação."}), 401
+        return jsonify({"success": False, "message": "Acesso negado. Você não está autenticado."}), 401
+
+
 
 # Servidor Flask
 if __name__ == '__main__':
