@@ -136,15 +136,16 @@ def get_usuario():
             user_id = current_user['user_id']
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
-            cursor.execute("SELECT nome, registro, email FROM usuario WHERE id=?", (user_id,))
+            cursor.execute("SELECT id, nome, registro, email, tipo_usuario FROM usuario WHERE id=?", (user_id,))
             data = cursor.fetchone()
-            usuario = {'nome': data[0], 'registro': data[1], 'email': data[2]}
+            usuario = {'id': data[0], 'nome': data[1], 'registro': data[2], 'email': data[3], 'tipo_usuario': data[4]}
             conn.close()
             return jsonify({'usuario': usuario})
         else:
-            return jsonify({'message': 'Chave "registro" não encontrada no objeto current_user', 'success': False}), 400
+            return jsonify({'message': 'Chave "user_id" não encontrada no objeto current_user', 'success': False}), 400
     else:
         return jsonify({'message': 'Não foi possível obter as informações do usuário', 'success': False}), 401
+
 
 @app.route('/usuarios/<string:registro>', methods=['GET'])
 @verify_token
