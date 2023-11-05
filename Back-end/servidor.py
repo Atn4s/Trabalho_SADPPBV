@@ -161,7 +161,7 @@ def cadastrar_usuario():
                     logging.debug("Usuário já cadastrado com esse REGISTRO")
                     return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 409 # conflit! usuário já existe!
                 except sqlite3 as e:
-                    logging.debug("ERRO SQLITE3!")
+                    logging.error(f"ERRO SQLITE3: {e}")
                     logging.error(f"Traceback: {traceback.format_exc()}")
                     return jsonify({"success": False, "message": "ERRO SQLITE3!"}), 403 # conflit! usuário já existe!
                 except Exception as e:
