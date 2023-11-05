@@ -137,31 +137,36 @@ def cadastrar_usuario():
                 logging.debug("[ Dados de usuário ausentes para cadastrar ]")
                 return jsonify({"success": False, "message": "Dados de usuário ausentes. Por favor, forneça os dados necessários."}), 400 # 400 pois é um BAD REQUEST ou seja sem dados para cadastrar! 
 
-            if not new_user.get('nome') or not new_user.get('registro') or not new_user.get('email') or not new_user.get('senha') or 'tipo_usuario' not in new_user:
+            elif not new_user.get('nome') or not new_user.get('registro') or not new_user.get('email') or not new_user.get('senha') or 'tipo_usuario' not in new_user:
                 logging.debug("[ Dados de usuário ausentes ou em branco para cadastrar ]")
                 return jsonify({"success": False, "message": "Dados de usuário ausentes ou em branco. Por favor, forneça os dados necessários."}), 400
-
+            elif not new_user.get('registro').isdigit():
+                logging.debug("[ O campo registro deve conter apenas números ]")
+                return jsonify({"success": False, "message": "O campo registro deve conter apenas números. Por favor, insira um valor numérico."}), 400
             # Verificação adicional para garantir que o campo 'tipo_usuario' seja 0 ou 1
-            if new_user['tipo_usuario'] not in [0, 1]:
+            elif new_user['tipo_usuario'] not in [0, 1]:
                 logging.debug("[ Tipo de usuário inválido ]")
                 return jsonify({"success": False, "message": "Tipo de usuário inválido. O tipo de usuário deve ser 0 ou 1."}), 400
-
-            conn = sqlite3.connect('project_data.db')
-            cursor = conn.cursor()
-            try:
-                senha_hash_blake2b = hashlib.blake2b(new_user['senha'].encode()).hexdigest()  
-                cursor.execute("INSERT INTO usuario (nome, registro, email, senha, tipo_usuario) VALUES (?, ?, ?, ?, ?)",
-                           (new_user['nome'], new_user['registro'], new_user['email'], senha_hash_blake2b, new_user['tipo_usuario']))
-                conn.commit()
-                logging.debug("[ Novo usuário cadastrado! ]")
-                return jsonify({"success": True, "message": "Novo usuário cadastrado com sucesso."}), 200
-            except sqlite3.IntegrityError as e:
-                logging.debug("Usuário já cadastrado com esse REGISTRO")
-                return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 409 # conflit! usuário já existe!
-            except Exception as e:
-                logging.error(f"Erro ao processar o cadastro do usuário: {e}")
-                logging.error(f"Traceback: {traceback.format_exc()}")
-                return jsonify({"success": False, "message": "Erro ao processar a solicitação de cadastro de usuário"}), 500
+            else:
+                conn = sqlite3.connect('project_data.db')
+                cursor = conn.cursor()
+                try:
+                    senha_hash_blake2b = hashlib.blake2b(new_user['senha'].encode()).hexdigest()  
+                    cursor.execute("INSERT INTO usuario (nome, registro, email, senha, tipo_usuario) VALUES (?, ?, ?, ?, ?)",
+                            (new_user['nome'], new_user['registro'], new_user['email'], senha_hash_blake2b, new_user['tipo_usuario']))
+                    conn.commit()
+                    logging.debug("[ Novo usuário cadastrado! ]")
+                    return jsonify({"success": True, "message": "Novo usuário cadastrado com sucesso."}), 200
+                except sqlite3.IntegrityError as e:
+                    logging.debug("Usuário já cadastrado com esse REGISTRO")
+                    return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 409 # conflit! usuário já existe!
+                except sqlite3 as e:
+                    logging.debug("ERRO SQLITE!")
+                    return jsonify({"success": False, "message": "BUGOU!"}), 403 # conflit! usuário já existe!
+                except Exception as e:
+                    logging.error(f"Erro ao processar o cadastro do usuário: {e}")
+                    logging.error(f"Traceback: {traceback.format_exc()}")
+                    return jsonify({"success": False, "message": "Erro ao processar a solicitação de cadastro de usuário"}), 500
         else:
             logging.debug("[ Usuário comum está tentando cadastradar ]")
             return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para acessar esta rota."}), 403
@@ -187,7 +192,12 @@ def get_usuario():
                     usuario.pop('senha', None)  # Remove a senha, se existir
                 conn.close()
                 logging.debug("[ Listar usuário com sucesso! ]")
-                return jsonify({'usuarios': usuarios})
+                response = {
+                    "usuarios": usuarios,
+                    "success": True,
+                    "message": "Usuários encontrados"
+                }
+                return jsonify(response), 200
             else:  # Se o tipo de usuário não for 1 (administrador), ele irá bloquear a consulta!
                 logging.debug("[ Usuário coomum não pode listar ]")
                 return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para acessar esta rota."}), 403
@@ -216,7 +226,12 @@ def get_usuario_by_registro(registro):
                     usuario = {'id': data[0], 'nome': data[1], 'registro': data[2], 'email': data[3], 'tipo_usuario': data[4]}
                     conn.close()
                     logging.debug("[ Usuário encontrado! ]")
-                    return jsonify({'usuario': usuario})
+                    response = {
+                        "usuario": usuario,
+                        "success": True,
+                        "message": "Usuário encontrado com sucesso."
+                    }
+                    return jsonify(response), 200
                 else:
                     logging.debug("[ Usuário não encontrado ]")
                     return jsonify({"success": False, "message": "O usuário com o registro especificado não foi encontrado."}), 404

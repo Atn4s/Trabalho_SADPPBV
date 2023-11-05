@@ -8,7 +8,7 @@ def initialize_database():
         cursor.execute('''CREATE TABLE IF NOT EXISTS usuario 
                           (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                           nome VARCHAR(100), 
-                          registro VARCHAR(7) NOT NULL UNIQUE, 
+                          registro INTEGER(7) NOT NULL UNIQUE, 
                           email VARCHAR(100), 
                           senha VARCHAR(150), 
                           tipo_usuario INTEGER)''')
