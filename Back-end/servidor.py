@@ -85,6 +85,8 @@ def verify_token(f):
 def login():
     registro = request.json.get('registro', None)
     senha = request.json.get('senha', None)
+    if registro and registro.isdigit():
+        registro = registro.lstrip('0')
 
     try:
         if not registro or not senha:

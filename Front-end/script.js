@@ -203,10 +203,15 @@ let token = localStorage.getItem('token');
                     'Authorization': `Bearer ${token}`
                 },
                 success: function (response) {
+                    let usuario;
                     console.log(response);
-                    if (response && response.usuario) {
-                        const usuario = response.usuario;
-    
+                    if (response && response.usuario || response.usuarios) {
+                        if(response && response.usuario){
+                            usuario = response.usuario;
+                        }
+                        else if (response && response.usuarios){
+                            usuario = response.usuarios;
+                        }                                        
                         clearTable();
     
                         let table = document.getElementById('tableUsuarios');
