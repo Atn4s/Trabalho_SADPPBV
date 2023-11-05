@@ -8,8 +8,9 @@ let token = localStorage.getItem('token');
     }
 
     function solicitarIDUsuario() {
-        const id = prompt('Digite o REGISTRO do usuário:');
+        let id = prompt('Digite o REGISTRO do usuário:');
         if (id) {
+            id = id.replace(/^0+/, ''); // Remove os zeros à esquerda da string
             listarUsuarioPorID(id);
         } else {
             alert("O ID do usuário não pode ser vazio.");
