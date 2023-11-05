@@ -271,12 +271,46 @@ let token = localStorage.getItem('token');
     }
     
     function criarUsuario() {
-        const nome = prompt('Digite o nome do usuário:');
-        const registro = prompt('Digite o registro do usuário:');
-        const email = prompt('Digite o e-mail do usuário:');
-        const senha = prompt('Digite a senha do usuário:');
-        const tipo_usuario = prompt('Digite o tipo de usuário (1 para administrador, 0 para usuário comum):');
-    
+        let nome;
+        while(!nome || !nome.trim()){
+            nome = prompt('Informe o NOME do usuário:');
+            if(!nome || !nome.trim()){
+                alert("Insira um NOME válido!")
+            }
+        }
+
+        let registro;
+        while(!registro || !registro.trim()){
+            registro = prompt('Informe o REGISTRO para o usuário:');
+            if(!registro || !registro.trim()){
+                alert("Insira um REGISTRO válido!")
+            }
+        }
+
+        let email;
+        while(!email || !email.trim()){
+            email = prompt('Informe o EMAIL para o usuário:');
+            if(!email || !email.trim()){
+                alert("Insira um EMAIL válido!")
+            }
+        }
+
+        let senha;
+        while(!senha || !senha.trim()){
+            senha = prompt('Informe a SENHA para o usuário:');
+            if(!senha || !senha.trim()){
+                alert("Insira uma SENHA válido!")
+            }
+        }
+
+        let tipo_usuario;
+        while(tipo_usuario !== "0" && tipo_usuario !== "1"){
+            tipo_usuario = prompt('Informe a TIPO DE USUÁRIO: [1 - ADMINISTRADOR] - [0 - COMUM]');
+            if(tipo_usuario !== "0" && tipo_usuario !== "1") {
+                alert("USUÁRIO PODE SER APENAS 0 OU 1!")
+            }
+        }
+
         const senhaMD5 = md5(senha);
     
         const novoUsuario = {

@@ -158,6 +158,10 @@ def cadastrar_usuario():
             except sqlite3.IntegrityError as e:
                 logging.debug("Usuário já cadastrado com esse REGISTRO")
                 return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 409 # conflit! usuário já existe!
+            except Exception as e:
+                logging.error(f"Erro ao processar o cadastro do usuário: {e}")
+                logging.error(f"Traceback: {traceback.format_exc()}")
+                return jsonify({"success": False, "message": "Erro ao processar a solicitação de cadastro de usuário"}), 500
         else:
             logging.debug("[ Usuário comum está tentando cadastradar ]")
             return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para acessar esta rota."}), 403
