@@ -29,3 +29,4 @@ else:
 
     if __name__ == '__main__':
         gerar_usuario()
+        print("Usuário ADM inserido!")

@@ -1,11 +1,3 @@
-#options,
-#loginForm {
-    text-align: center;
-    width: auto;
-    height: auto;
-    padding: auto;
-}
-
 html{
     background-color: black;
     color: white;
@@ -15,13 +7,126 @@ body {
     font-size: 16px;
 }
 
-button {
+button{
     margin-right: 10px;
+    display: inline-block;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    border: none;
+    border-radius: 4px;
+    text-align: center;
+    text-decoration: none;
+}
+
+button:hover {
+    background-color: grey;
+}
+
+button[type=submit]:hover {
+    background-color: #45a049;
+}
+
+#logoutButton {
+    display: inline-block;
+    padding: 10px 20px;
+    font-size: 16px;
+    cursor: pointer;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    text-align: center;
+    text-decoration: none;
+}
+
+#logoutButton:hover {
+    background-color: #a11e1a;
+}
+
+#loginForm button {
+    width: 75%;
+    background-color: #4CAF50;
+    color: white;
+    padding: 14px 20px;
+    margin: 8px 0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+input[type=text], input[type=password] {
+    padding: 12px 20px;
+    margin: 8px 0;
+    display: inline-block;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+input[type=submit] {
+    background-color: #4CAF50;
+    color: white;
+    padding: 14px 20px;
+    margin: 8px 0;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#options, #loginForm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%; /* Defina a largura para ocupar 100% do contêiner pai */
+    height: auto;
+    padding: 20px 0; /* Adicione algum preenchimento para manter a distância entre os elementos */
+}
+
+#loginForm h1, #loginForm h3 {
+    margin: 10px 0;
 }
 
 #loginForm img {
     width: 55%;
     height: 55%;
+}
+
+#loginForm form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 300px;
+}
+
+#loginForm p {
+    margin: 10px 0;
+}
+
+#loginForm input {
+    width: 100%;
+    padding: 12px 20px;
+    margin: 8px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+#loginForm button:hover {
+    background-color: #45a049;
+}
+
+#loginForm img {
+    padding: 0.1%;
+    background-color: black;
+    width: 40%;
+    height: 40%;
 }
 
 #tableUsuarios {
@@ -31,13 +136,15 @@ button {
     width: 50%; 
 }
 
-#tableUsuarios th,
-#tableUsuarios td {
+#tableUsuarios th, #tableUsuarios td {
+    background-color: black;
+    color: white;
     border: 1px solid white; 
     padding: 8px; 
     text-align: center; 
 }
 
 #tableUsuarios th {
-    background-color: white; 
+    background-color: black;
+    color: white;
 }

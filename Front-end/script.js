@@ -3,12 +3,12 @@ let PORT = localStorage.getItem('PORT');
 let token = localStorage.getItem('token');
 
     if (token) {
-        $('#options').css('display', 'block');
-        $('#loginForm').css('display', 'none');
+        $('#options').show(); // Use o método .show() para exibir o elemento
+        $('#loginForm').hide(); // Use o método .hide() para ocultar o elemento
     }
 
     function solicitarIDUsuario() {
-        const id = prompt('Digite o ID do usuário:');
+        const id = prompt('Digite o REGISTRO do usuário:');
         if (id) {
             listarUsuarioPorID(id);
         } else {
@@ -87,12 +87,12 @@ let token = localStorage.getItem('token');
                 localStorage.removeItem('token'); // Remova o token do localStorage ao fazer logout
                 localStorage.removeItem('IP'); // Remova o IP do localStorage ao fazer logout
                 localStorage.removeItem('PORT'); // Remova o PORT do localStorage ao fazer logout
-                $('#options').css('display', 'none');
-                $('#loginForm').css('display', 'block');
+                $('#options').hide(); // Use o método .hide() para ocultar o elemento
+                $('#loginForm').show(); // Use o método .show() para exibir o elemento
             },
             error: function (error) {
                 const errorObject = JSON.parse(error.responseText);
-                alert(error);
+                alert(JSON.stringify(errorObject));
             }
         });
     }
@@ -112,6 +112,7 @@ let token = localStorage.getItem('token');
     }
 
     function listarUsuarios() {
+    if (!tableVisible) {
     $.ajax({
         url: `http://${IP}:${PORT}/usuarios`,
         type: 'GET',
@@ -133,6 +134,29 @@ let token = localStorage.getItem('token');
                     document.body.appendChild(table);
                 }
 
+                const thead = table.createTHead();
+                const row = thead.insertRow();
+    
+                // Cabeçalho 1: nome
+                const th1 = document.createElement('th');
+                th1.innerHTML = 'Nome';
+                row.appendChild(th1);
+    
+                // Cabeçalho 2: registro
+                const th2 = document.createElement('th');
+                th2.innerHTML = 'Registro';
+                row.appendChild(th2);
+    
+                // Cabeçalho 3: email
+                const th3 = document.createElement('th');
+                th3.innerHTML = 'Email';
+                row.appendChild(th3);
+    
+                // Cabeçalho 4: tipo_usuario
+                const th4 = document.createElement('th');
+                th4.innerHTML = 'Tipo de Usuário';
+                row.appendChild(th4);
+
                 const tableBody = document.createElement('tbody');
                 for (let i = 0; i < usuarios.length; i++) {
                     const usuario = usuarios[i];
@@ -149,17 +173,24 @@ let token = localStorage.getItem('token');
 
                     const cell4 = row.insertCell(3);
                     cell4.innerHTML = usuario.tipo_usuario === 1 ? 'Administrador' : 'Usuário Comum';
-                }
+                }                
+                
                 table.appendChild(tableBody);
                 toggleTable(true); // Sempre mostra a tabela quando os usuários são listados
             } else {
                 console.error("Nenhum usuário encontrado.");
-            }
+            }            
         },
         error: function (error) {
-            console.error(error);
+            const errorObject = JSON.parse(error.responseText);
+            alert(JSON.stringify(errorObject));
         }
-    });
+        });
+        } else {
+            clearTable(); // Limpa a tabela antes de ocultar
+            tableVisible = false; // Define a tabela como oculta
+            toggleTable(false); // Esconde a tabela
+        }
     }
 
     function listarUsuarioPorID(id) {
@@ -175,60 +206,79 @@ let token = localStorage.getItem('token');
                     console.log(response);
                     if (response && response.usuario) {
                         const usuario = response.usuario;
-
-                        // Limpa a tabela antes de adicionar o usuário por ID
+    
                         clearTable();
-
-                        table = document.getElementById('tableUsuarios');
+    
+                        let table = document.getElementById('tableUsuarios');
                         if (!table) {
                             table = document.createElement('table');
                             table.id = 'tableUsuarios';
                             document.body.appendChild(table);
                         }
-
+    
+                        const thead = table.createTHead();
+                        const row = thead.insertRow();
+    
+                        // Cabeçalho 1: nome
+                        const th1 = document.createElement('th');
+                        th1.innerHTML = 'Nome';
+                        row.appendChild(th1);
+    
+                        // Cabeçalho 2: registro
+                        const th2 = document.createElement('th');
+                        th2.innerHTML = 'Registro';
+                        row.appendChild(th2);
+    
+                        // Cabeçalho 3: email
+                        const th3 = document.createElement('th');
+                        th3.innerHTML = 'Email';
+                        row.appendChild(th3);
+    
+                        // Cabeçalho 4: tipo_usuario
+                        const th4 = document.createElement('th');
+                        th4.innerHTML = 'Tipo de Usuário';
+                        row.appendChild(th4);
+    
                         const tableBody = document.createElement('tbody');
-                        const row = tableBody.insertRow(0);
-
-                        const cell1 = row.insertCell(0);
+                        const newRow = tableBody.insertRow(0);
+    
+                        const cell1 = newRow.insertCell(0);
                         cell1.innerHTML = usuario.nome;
-
-                        const cell2 = row.insertCell(1);
+    
+                        const cell2 = newRow.insertCell(1);
                         cell2.innerHTML = usuario.registro;
-
-                        const cell3 = row.insertCell(2);
+    
+                        const cell3 = newRow.insertCell(2);
                         cell3.innerHTML = usuario.email;
-
-                        const cell4 = row.insertCell(3);
+    
+                        const cell4 = newRow.insertCell(3);
                         cell4.innerHTML = usuario.tipo_usuario === 1 ? 'Administrador' : 'Usuário Comum';
-
+    
                         table.appendChild(tableBody);
-                        toggleTable(true); // Sempre mostra a tabela quando um usuário é listado
+                        toggleTable(true);
                     } else {
                         alert("Usuário não encontrado.");
                     }
                 },
                 error: function (error) {
-                    if (error.status === 401) {
-                        alert("Precisa ser administrador para realizar esta ação.");
-                    } else {
-                        console.error(error);
-                    }
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));
                 }
             });
         } else {
             alert("Faça login para executar esta ação.");
         }
     }
-
+    
     function criarUsuario() {
         const nome = prompt('Digite o nome do usuário:');
         const registro = prompt('Digite o registro do usuário:');
         const email = prompt('Digite o e-mail do usuário:');
         const senha = prompt('Digite a senha do usuário:');
         const tipo_usuario = prompt('Digite o tipo de usuário (1 para administrador, 0 para usuário comum):');
-
+    
         const senhaMD5 = md5(senha);
-
+    
         const novoUsuario = {
             nome: nome,
             registro: registro,
@@ -236,7 +286,7 @@ let token = localStorage.getItem('token');
             senha: senhaMD5,
             tipo_usuario: parseInt(tipo_usuario)
         };
-
+    
         $.ajax({
             url: `http://${IP}:${PORT}/usuarios`,
             type: 'POST',
@@ -249,8 +299,9 @@ let token = localStorage.getItem('token');
                 alert(JSON.stringify(response));
             },
             error: function (error) {
-                alert(JSON.stringify(error));
+                const errorObject = JSON.parse(error.responseText);
+                alert(JSON.stringify(errorObject));
             }
-
         });
     }
+    
