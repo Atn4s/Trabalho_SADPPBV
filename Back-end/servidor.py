@@ -145,7 +145,7 @@ def cadastrar_usuario():
                     "success": False,
                     "message": "O campo registro deve conter apenas números. Por favor, insira um valor numérico."
                 }), 400
-            elif (new_user.get('nome') is None or new_user.get('registro') is None or new_user.get('email') is None or new_user.get('senha') is None or 'tipo_usuario' not in new_user):
+            elif (new_user.get('nome') is None or new_user.get('registro') is None or new_user.get('email') is None or new_user.get('senha') is None or 'tipo_usuario' not in new_user) or (new_user.get('nome') == '' or new_user.get('registro') == '' or new_user.get('email') == '' or new_user.get('senha') == ''):
                 logging.debug("[ Dados de usuário ausentes ou em branco para cadastrar ]")
                 return jsonify({"success": False, "message": "Dados de usuário ausentes ou em branco. Por favor, forneça os dados necessários."}), 400            
             elif new_user['tipo_usuario'] not in [0, 1]:
