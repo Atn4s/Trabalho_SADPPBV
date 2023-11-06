@@ -293,6 +293,8 @@ let token = localStorage.getItem('token');
             }
         }
 
+        let registroInt = parseInt(registro, 10); // Converte para inteiro
+
         let email;
         while(!email || !email.trim()){
             email = prompt('Informe o EMAIL para o usuário:');
@@ -317,14 +319,15 @@ let token = localStorage.getItem('token');
             }
         }
 
+        let tipo_usuarioInt = parseInt(tipo_usuario, 10); // Converte para inteiro
         const senhaMD5 = md5(senha);
     
         const novoUsuario = {
             nome: nome,
-            registro: registro,
+            registro: registroInt,
             email: email,
             senha: senhaMD5,
-            tipo_usuario: parseInt(tipo_usuario)
+            tipo_usuario: tipo_usuarioInt
         };
     
         $.ajax({
