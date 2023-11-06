@@ -138,13 +138,12 @@ def cadastrar_usuario():
             if not new_user:
                 logging.debug("[ Dados de usuário ausentes para cadastrar ]")
                 return jsonify({"success": False, "message": "Dados de usuário ausentes. Por favor, forneça os dados necessários."}), 400 # 400 pois é um BAD REQUEST ou seja sem dados para cadastrar! 
-
-            elif not new_user.get('nome') or not new_user.get('registro') or not new_user.get('email') or not new_user.get('senha') or 'tipo_usuario' not in new_user:
-                logging.debug("[ Dados de usuário ausentes ou em branco para cadastrar ]")
-                return jsonify({"success": False, "message": "Dados de usuário ausentes ou em branco. Por favor, forneça os dados necessários."}), 400
-            elif not new_user.get('registro').isdigit():
+            elif not isinstance(new_user['registro'], int):
                 logging.debug("[ O campo registro deve conter apenas números ]")
                 return jsonify({"success": False, "message": "O campo registro deve conter apenas números. Por favor, insira um valor numérico."}), 400
+            elif not new_user.get('nome') or not new_user.get('registro') or not new_user.get('email') or not new_user.get('senha') or 'tipo_usuario' not in new_user:
+                logging.debug("[ Dados de usuário ausentes ou em branco para cadastrar ]")
+                return jsonify({"success": False, "message": "Dados de usuário ausentes ou em branco. Por favor, forneça os dados necessários."}), 400            
             # Verificação adicional para garantir que o campo 'tipo_usuario' seja 0 ou 1
             elif new_user['tipo_usuario'] not in [0, 1]:
                 logging.debug("[ Tipo de usuário inválido ]")
