@@ -10,6 +10,7 @@ from functools import wraps # decorador em Python para preservar o token
 import Tables # arquivo Tables.py ele é chamado para criar as tabelas caso não sejam inicializadas!
 import logging # biblioteca para registro de eventos para depuração e monitoramento
 import traceback # biblioteca para a obtenção e manipulação de informações de rastreamento de exceções. 
+import re # biblioteca para REGEX!
 
 logging.basicConfig(level=logging.DEBUG) # Nível de log na depuração
 
@@ -124,23 +125,26 @@ def fazer_logout():
         logging.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"success": False, "message": "Erro ao processar a solicitação de logout"}), 500 # 500 ERRO INTERNO NO MEU SERVIDOR!
 
-# Usuários método POST
 @app.route('/usuarios', methods=['POST'])
 @verify_token
 def cadastrar_usuario():
     current_user = get_jwt_identity()
     try:
-        if current_user and current_user['tipo_usuario'] == 1:  # Verifica se o tipo de usuário é 1 para administrador
+        if current_user and current_user['tipo_usuario'] == 1:  
             auth_header = request.headers.get('Authorization')
             token = auth_header.split(" ")[1]  
             
             new_user = request.json
             if not new_user:
                 logging.debug("[ Dados de usuário ausentes para cadastrar ]")
-                return jsonify({"success": False, "message": "Dados de usuário ausentes. Por favor, forneça os dados necessários."}), 400 # 400 pois é um BAD REQUEST ou seja sem dados para cadastrar! 
-            elif not new_user.get('registro').isdigit():
+                return jsonify({"success": False, "message": "Dados de usuário ausentes. Por favor, forneça os dados necessários."}), 400 
+            
+            if not re.match(r'^\d+$', str(new_user.get('registro'))) and not re.match(r'^"\d+"$', str(new_user.get('registro'))):
                 logging.debug("[ O campo registro deve conter apenas números ]")
-                return jsonify({"success": False, "message": "O campo registro deve conter apenas números. Por favor, insira um valor numérico."}), 400
+                return jsonify({
+                    "success": False,
+                    "message": "O campo registro deve conter apenas números. Por favor, insira um valor numérico."
+                }), 400
             elif not new_user.get('nome') or not new_user.get('registro') or not new_user.get('email') or not new_user.get('senha') or 'tipo_usuario' not in new_user:
                 logging.debug("[ Dados de usuário ausentes ou em branco para cadastrar ]")
                 return jsonify({"success": False, "message": "Dados de usuário ausentes ou em branco. Por favor, forneça os dados necessários."}), 400            
@@ -159,22 +163,22 @@ def cadastrar_usuario():
                     return jsonify({"success": True, "message": "Novo usuário cadastrado com sucesso."}), 200
                 except sqlite3.IntegrityError as e:
                     logging.debug("Usuário já cadastrado com esse REGISTRO")
-                    return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 409 # conflit! usuário já existe!
-                except sqlite3 as e:
+                    return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 409 
+                except sqlite3.Error as e:
                     logging.error(f"ERRO SQLITE3: {e}")
                     logging.error(f"Traceback: {traceback.format_exc()}")
-                    return jsonify({"success": False, "message": "ERRO SQLITE3!"}), 403 # conflit! usuário já existe!
+                    return jsonify({"success": False, "message": "ERRO SQLITE3!"}), 500 
                 except Exception as e:
                     logging.error(f"Erro ao processar o cadastro do usuário: {e}")
                     logging.error(f"Traceback: {traceback.format_exc()}")
-                    return jsonify({"success": False, "message": "Erro ao processar a solicitação de cadastro de usuário"}), 500
+                    return jsonify({"success": False, "message": "Erro ao processar a solicitação de cadastro de usuário Exception Interna!"}), 500
         else:
             logging.debug("[ Usuário comum está tentando cadastradar ]")
             return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para acessar esta rota."}), 403
     except Exception as e:
         logging.error(f"Erro ao processar o cadastro do usuário: {e}")
         logging.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": "Erro ao processar a solicitação de cadastro de usuário"}), 500
+        return jsonify({"success": False, "message": "Erro ao processar a solicitação de cadastro de usuário Exception Externa!"}), 500
 
 @app.route('/usuarios', methods=['GET'])
 @verify_token
