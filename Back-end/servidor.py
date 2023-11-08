@@ -1,24 +1,18 @@
-import hashlib # biblioteca para criação de HASH
-import sqlite3 # biblioteca para manipulação do banco SQLITE3
-import sys # biblioteca para executar demais scripts em Python
-import secrets # biblioteca para gerar numeros aleatórios para o token JWT
-from datetime import timedelta # classe Python para utilizar data e hora
-from flask import Flask, request, jsonify # Framework para aplicação web = PROJETO INTEIRO!
-from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity # extensão para manipular o token JWT
-from flask_cors import CORS # biblioteca para rotas método CORS! IMPORTANTE PARA O PROJETO!
-from functools import wraps # decorador em Python para preservar o token
-import Tables # arquivo Tables.py ele é chamado para criar as tabelas caso não sejam inicializadas!
-import logging # biblioteca para registro de eventos para depuração e monitoramento
-import traceback # biblioteca para a obtenção e manipulação de informações de rastreamento de exceções. 
-import re # biblioteca para REGEX!
+import hashlib, sqlite3, sys, secrets, logging, traceback, re
+from datetime import timedelta 
+from flask import Flask, request, jsonify
+from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity 
+from flask_cors import CORS
+from functools import wraps
+import Tables
 
-logging.basicConfig(level=logging.DEBUG) # Nível de log na depuração
+logging.basicConfig(level=logging.DEBUG) 
+app = Flask('SADPPBV') 
+CORS(app, resources={r"/*": {"origins": "*"}})  
 
-app = Flask('SADPPBV') # Nome do aplicativo Flask
-CORS(app, resources={r"/*": {"origins": "*"}})  # Configuração do CORS para permitir todas as origens
-
-# Configurações JWT
 key = secrets.token_hex(32)
+csrf_value = secrets.token_hex(32)
+
 app.config['JWT_SECRET_KEY'] = key
 app.config['JWT_BLACKLIST_ENABLED'] = True
 app.config['JWT_BLACKLIST_TOKEN_CHECKS'] = ['access', 'refresh']
@@ -26,11 +20,9 @@ ACCESS_EXPIRES = timedelta(hours=1)
 revoked_tokens = set()
 jwt = JWTManager(app)
 
-# Inicializar base de dados (Tables.py)
 Tables.initialize_database()
 
-# decodificação do token JWT!
-def decode_token(encoded_token, csrf_value, allow_expired=False):
+def decode_token(encoded_token, csrf_value, allow_expired=False): # decodificação do token JWT!
     try:
         if encoded_token is None:
             raise jwt.exceptions.InvalidTokenError("Token não encontrado")    
@@ -46,8 +38,7 @@ def decode_token(encoded_token, csrf_value, allow_expired=False):
         logging.debug("Token inválido")
         raise
 
-# Autenticação do usuário, ele busca pelo registro e senha no banco de dados e retornas as informações para criação do token como user_id - tipo_usuario e senha
-def authenticate_user(registro, senha_hash_blake2b):
+def authenticate_user(registro, senha_hash_blake2b): # Autenticação do usuário, busca no banco de dados e retornas as informações para criar o token
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
     cursor.execute("SELECT id, senha, tipo_usuario FROM usuario WHERE registro = ?", (registro,))
@@ -58,8 +49,7 @@ def authenticate_user(registro, senha_hash_blake2b):
             return {'user_id': user[0], 'tipo_usuario': user[2], 'senha': senha_hash_blake2b}
     return None
 
-# verificação do token a cada operação
-def verify_token(f):
+def verify_token(f): # verificação do token a cada operação
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
@@ -78,12 +68,29 @@ def verify_token(f):
         except Exception as e:
             logging.error(f"Erro: {e}")
             logging.error(f"Traceback: {traceback.format_exc()}")
-            return jsonify({'message': 'Erro ao processar a solicitação', 'success': False}, 500)  # 500 ERRO INTERNO NO MEU SERVIDOR!
+            return jsonify({'message': 'Erro ao processar a solicitação', 'success': False}, 400)  
     return decorated_function
 
-# Login método POST
-@app.route('/login', methods=['POST'])
+def get_user_info(current_user):
+    info_keys = ['user_id', 'tipo_usuario', 'senha', 'registro']
+    user_info = {key: current_user.get(key, 'não informado') for key in info_keys}
+    return user_info
+
+
+def log_and_respond(logger, message, status_code):
+    logger(message)
+    return jsonify({"success": False, "message": message}), status_code
+
+def handle_exceptions(logger, e):
+    logger(f"Erro: {e}")
+    logger(f"Traceback: {traceback.format_exc()}")
+    return jsonify({"success": False, "message": "Erro ao processar a solicitação"}), 400
+
+
+@app.route('/login', methods=['POST']) # Login método POST
 def login():
+    teste = request.get_json()
+    logging.debug(f"Recebido pedido de login: {teste}")
     registro = request.json.get('registro', None)
     senha = request.json.get('senha', None)
 
@@ -98,22 +105,33 @@ def login():
             logging.debug("[ Credenciais inválidas! Não está logado! ]")
             return jsonify({"success": False, "message": "Credenciais inválidas"}), 401 # Não autenticado!
 
-        token = create_access_token(identity={'user_id': current_user['user_id'], 'tipo_usuario': current_user['tipo_usuario'], 'senha': senha_hash_blake2b, 'registro': registro}, expires_delta=ACCESS_EXPIRES)
+        token = create_access_token(
+            identity={
+                'user_id': current_user['user_id'], 
+                'tipo_usuario': current_user['tipo_usuario'], 
+                'senha': senha_hash_blake2b, 
+                'registro': registro
+            }, 
+            expires_delta=ACCESS_EXPIRES
+        )
         logging.debug("[ Login Autorizado! ]")
-        return jsonify({"success": True, "message": "Login bem-sucedido", "token": token}), 200 # Legal você agora tem um token e pode usar meu sistema!
+        user_info = get_user_info(current_user)
+        logging.debug(f"Dados do Login: {user_info}")
+        return jsonify({"success": True, "message": "Login bem-sucedido", "token": token, "registro": registro}), 200 # Token e pode usar meu sistema!
 
     except Exception as e:
-            logging.error(f"Erro ao processar o login: {e}")
-            logging.error(f"Traceback: {traceback.format_exc()}")
-            return jsonify({"success": False, "message": "Erro ao processar a solicitação de login"}), 500 # 500 ERRO INTERNO NO MEU SERVIDOR!
-
+        return handle_exceptions(logging.error, e)
+    
 # Logout método POST 
 @app.route('/logout', methods=['POST'])
 @verify_token
 def fazer_logout():
     try:
         auth_header = request.headers.get('Authorization') # Obtenha o token JWT do header
-        token = auth_header.split(" ")[1]  # Obtém o token do header de autorização
+        token = auth_header.split(" ")[1]  
+        current_user = get_jwt_identity()
+        user_info = get_user_info(current_user)
+        logging.debug(f"Recebido pedido de logout de: {user_info}")
 
         revoked_tokens.add(token) # Adicione o token à lista de tokens revogados logo não será possível reutiliza-lo!
         logging.debug("[ Logout Realizado com sucesso! ]")
@@ -121,16 +139,16 @@ def fazer_logout():
     except Exception as e:
         logging.error(f"Erro ao processar o logout: {e}")
         logging.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": "Erro ao processar a solicitação de logout"}), 500 # 500 ERRO INTERNO NO MEU SERVIDOR!
+        return jsonify({"success": False, "message": "Erro ao processar a solicitação de logout"}), 400 
 
 @app.route('/usuarios', methods=['POST'])
 @verify_token
 def cadastrar_usuario():
     current_user = get_jwt_identity()
     try:
-        if current_user and current_user['tipo_usuario'] == 1:  
-            auth_header = request.headers.get('Authorization')
-            token = auth_header.split(" ")[1]  
+        if current_user and current_user['tipo_usuario'] == 1:          
+            user_info = get_user_info(current_user)
+            logging.debug(f"Recebido pedido de cadastrar usuário de: {user_info}")
             
             new_user = request.json
             if not new_user:
@@ -143,7 +161,10 @@ def cadastrar_usuario():
                     "success": False,
                     "message": "O campo registro deve conter apenas números. Por favor, insira um valor numérico."
                 }), 400
-            elif (new_user.get('nome') is None or new_user.get('registro') is None or new_user.get('email') is None or new_user.get('senha') is None or 'tipo_usuario' not in new_user) or (new_user.get('nome') == '' or new_user.get('registro') == '' or new_user.get('email') == '' or new_user.get('senha') == ''):
+
+            required_fields = ['nome', 'registro', 'email', 'senha', 'tipo_usuario']
+
+            if any(new_user.get(field) in (None, '') for field in required_fields):
                 logging.debug("[ Dados de usuário ausentes ou em branco para cadastrar ]")
                 return jsonify({"success": False, "message": "Dados de usuário ausentes ou em branco. Por favor, forneça os dados necessários."}), 400            
             elif new_user['tipo_usuario'] not in [0, 1]:
@@ -161,22 +182,18 @@ def cadastrar_usuario():
                     return jsonify({"success": True, "message": "Novo usuário cadastrado com sucesso."}), 200
                 except sqlite3.IntegrityError as e:
                     logging.debug("Usuário já cadastrado com esse REGISTRO")
-                    return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 409 
+                    return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 400 
                 except sqlite3.Error as e:
                     logging.error(f"ERRO SQLITE3: {e}")
                     logging.error(f"Traceback: {traceback.format_exc()}")
-                    return jsonify({"success": False, "message": "ERRO SQLITE3!"}), 500 
+                    return jsonify({"success": False, "message": "ERRO SQLITE3!"}), 400 
                 except Exception as e:
-                    logging.error(f"Erro ao processar o cadastro do usuário: {e}")
-                    logging.error(f"Traceback: {traceback.format_exc()}")
-                    return jsonify({"success": False, "message": "Erro ao processar a solicitação de cadastro de usuário Exception Interna!"}), 500
+                    return handle_exceptions(logging.error, e)
         else:
             logging.debug("[ Usuário comum está tentando cadastradar ]")
             return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para acessar esta rota."}), 403
     except Exception as e:
-        logging.error(f"Erro ao processar o cadastro do usuário: {e}")
-        logging.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": "Erro ao processar a solicitação de cadastro de usuário Exception Externa!"}), 500
+        return handle_exceptions(logging.error, e)
 
 @app.route('/usuarios', methods=['GET'])
 @verify_token
@@ -185,6 +202,8 @@ def get_usuario():
         current_user = get_jwt_identity()
         if current_user:
             logging.debug("Usuário autenticado")
+            user_info = get_user_info(current_user)
+            logging.debug(f"Recebido pedido de listagem de usuários de: {user_info}")
             if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1:  # Verifica se o tipo de usuário é 1 (administrador)
                 conn = sqlite3.connect('project_data.db')
                 cursor = conn.cursor()
@@ -208,19 +227,17 @@ def get_usuario():
             logging.error("[ Não foi possível obter as informações do usuário ]")
             return jsonify({'message': 'Não foi possível obter as informações do usuário', 'success': False}), 401
     except Exception as e:
-        logging.error(f'Erro ao processar a solicitação de obter usuário: {e}')
-        logging.error(f'Traceback: {traceback.format_exc()}')
-        return jsonify({'message': 'Erro ao processar a solicitação', 'success': False}), 500
+        return handle_exceptions(logging.error, e)
 
-
-@app.route('/usuarios/<registro>', methods=['GET'])
+@app.route('/usuarios/<int:registro>', methods=['GET'])
 @verify_token
 def get_usuario_by_registro(registro):
     try:
         current_user = get_jwt_identity()
         if current_user:
-            if current_user['tipo_usuario'] == 1 or (current_user['tipo_usuario'] == 0 and current_user['registro'] == registro):  # Verifica é adm ou user comum para buscar 
-                logging.debug("Verificando permissões de acesso")
+            if current_user['tipo_usuario'] == 1 or (current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro):  # Verifica se pode buscar                logging.debug("Verificando permissões de acesso")
+                user_info = get_user_info(current_user)
+                logging.debug(f"Recebido pedido de listar o usuário {registro} de: {user_info}")
                 conn = sqlite3.connect('project_data.db')
                 cursor = conn.cursor()
                 cursor.execute("SELECT id, nome, registro, email, tipo_usuario FROM usuario WHERE registro=?", (registro,))
@@ -245,9 +262,7 @@ def get_usuario_by_registro(registro):
             logging.error('[ Acesso negado. Você não está autenticado. ]')
             return jsonify({"success": False, "message": "Acesso negado. Você não está autenticado."}), 401
     except Exception as e:
-        logging.error(f'Erro ao processar a solicitação: {e}')
-        logging.error(f'Traceback: {traceback.format_exc()}')
-        return jsonify({'message': 'Erro ao processar a solicitação', 'success': False}), 500
+        return handle_exceptions(logging.error, e)
 
 # Servidor Flask
 if __name__ == '__main__':

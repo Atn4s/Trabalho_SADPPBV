@@ -51,7 +51,7 @@ let token = localStorage.getItem('token');
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({
-                    registro: registro,
+                    registro: parseInt(registro),
                     senha: senha
                 }),
                 success: function (response) {
