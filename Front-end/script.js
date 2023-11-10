@@ -112,6 +112,65 @@ let token = localStorage.getItem('token');
         }
     }
 
+    function addButtons(row, usuario) {
+//        console.log('Registro do usuário:', usuario.registro);
+        // Botão de Atualizar
+        const updateButton = document.createElement('button');
+        updateButton.innerHTML = 'Atualizar';
+        updateButton.onclick = function() {
+            const novoNome = prompt('Digite o novo nome:', usuario.nome);
+            const novoEmail = prompt('Digite o novo email:', usuario.email);
+            const novaSenha = prompt('Digite a nova senha:', usuario.senha);
+    
+            const senhaMD5 = md5(novaSenha);
+
+
+            if (novoNome && novoEmail && senhaMD5) {
+                const dadosAtualizados = {
+                    nome: novoNome,
+                    email: novoEmail,
+                    senha: senhaMD5
+                };
+                    
+                $.ajax({
+                    url: `http://${IP}:${PORT}/usuarios/${usuario.registro}`,
+                    type: 'PUT',
+                    contentType: 'application/json',
+                    data: JSON.stringify(dadosAtualizados),
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    success: function (response) {
+                        alert(JSON.stringify(response));
+                    },
+
+                    error: function (error) {
+                        try {
+                            const errorObject = JSON.parse(error.responseText);
+                            alert(errorObject.message);  
+                        } catch (e) {
+                            console.log("Erro ao analisar JSON da resposta de erro:", e);
+                            alert("Erro desconhecido ao processar a resposta de erro.");
+                        }                  
+                    }
+                });
+            } else {
+                alert('Por favor, preencha todos os campos. Atualização cancelada.');
+            }
+        };
+        row.appendChild(updateButton);
+    
+        // Botão de Excluir
+        const deleteButton = document.createElement('button');
+        deleteButton.innerHTML = 'Excluir';
+        deleteButton.onclick = function() {
+            // Lógica de exclusão do usuário aqui, por exemplo, chamar uma função de exclusão com o ID do usuário
+            // deleteUser(usuario.id);
+            console.log('Excluir usuário: ', usuario.nome);
+        };
+        row.appendChild(deleteButton);
+    }
+
     function listarUsuarios() {
     if (!tableVisible) {
     $.ajax({
@@ -174,6 +233,8 @@ let token = localStorage.getItem('token');
 
                     const cell4 = row.insertCell(3);
                     cell4.innerHTML = usuario.tipo_usuario === 1 ? 'Administrador' : 'Usuário Comum';
+
+                    addButtons(row, usuario); // Adiciona botões para cada linha de usuário
                 }                
                 
                 table.appendChild(tableBody);
@@ -260,6 +321,8 @@ let token = localStorage.getItem('token');
                         const cell4 = newRow.insertCell(3);
                         cell4.innerHTML = usuario.tipo_usuario === 1 ? 'Administrador' : 'Usuário Comum';
     
+                        addButtons(row, usuario); // Adiciona botões para cada linha de usuário
+
                         table.appendChild(tableBody);
                         toggleTable(true);
                     } else {

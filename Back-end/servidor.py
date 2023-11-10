@@ -76,10 +76,9 @@ def get_user_info(current_user):
     user_info = {key: current_user.get(key, 'não informado') for key in info_keys}
     return user_info
 
-
-def log_and_respond(logger, message, status_code):
+def code_response(logger, message, status_code):
     logger(message)
-    return jsonify({"success": False, "message": message}), status_code
+    return jsonify({"success": True, "message": message}), status_code
 
 def handle_exceptions(logger, e):
     logger(f"Erro: {e}")
@@ -97,6 +96,7 @@ def login():
     try:
         if not registro or not senha:
             logging.debug("[ Credenciais inválidas, verifique suas informações ]")
+            
             return jsonify({"success": False, "message": "Credenciais inválidas"}), 401 # Não autenticado!
 
         senha_hash_blake2b = hashlib.blake2b(senha.encode()).hexdigest()  # Criptografa a senha em BLAKE2B 
@@ -135,7 +135,8 @@ def fazer_logout():
 
         revoked_tokens.add(token) # Adicione o token à lista de tokens revogados logo não será possível reutiliza-lo!
         logging.debug("[ Logout Realizado com sucesso! ]")
-        return jsonify({"success": True, "message": "Logout bem-sucedido"}), 200 # tudo certo logout com sucesso!
+        return code_response(logging.debug,"Logout bem-sucedido!",200)
+        #return jsonify({"success": True, "message": "Logout bem-sucedido"}), 200 # tudo certo logout com sucesso!
     except Exception as e:
         logging.error(f"Erro ao processar o logout: {e}")
         logging.error(f"Traceback: {traceback.format_exc()}")
@@ -179,7 +180,8 @@ def cadastrar_usuario():
                             (new_user['nome'], new_user['registro'], new_user['email'], senha_hash_blake2b, new_user['tipo_usuario']))
                     conn.commit()
                     logging.debug("[ Novo usuário cadastrado! ]")
-                    return jsonify({"success": True, "message": "Novo usuário cadastrado com sucesso."}), 200
+                    return code_response(logging.debug,"Novo usuário cadastrado com sucesso.",200)
+                    #return jsonify({"success": True, "message": "Novo usuário cadastrado com sucesso."}), 200
                 except sqlite3.IntegrityError as e:
                     logging.debug("Usuário já cadastrado com esse REGISTRO")
                     return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 400 
@@ -258,6 +260,50 @@ def get_usuario_by_registro(registro):
             else:
                 logging.debug("[ Usuário comum não pode pesquisar outros ]")
                 return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para acessar esta rota."}), 403
+        else:
+            logging.error('[ Acesso negado. Você não está autenticado. ]')
+            return jsonify({"success": False, "message": "Acesso negado. Você não está autenticado."}), 401
+    except Exception as e:
+        return handle_exceptions(logging.error, e)
+
+@app.route('/usuarios/<int:registro>', methods=['PUT'])
+@jwt_required()
+def atualizar_usuario(registro):
+    try:
+        current_user = get_jwt_identity()
+        if current_user:
+            logging.debug(f"Recebida solicitação de atualização para o usuário com registro {registro}")
+            if current_user['tipo_usuario'] == 1 or (current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro):  
+                logging.debug("Verificando permissões de atualização")
+
+                dados_atualizados = request.get_json()
+
+                if 'nome' in dados_atualizados and 'email' in dados_atualizados and 'senha' in dados_atualizados:
+
+                    senha_hash_blake2b = hashlib.blake2b(dados_atualizados['senha'].encode()).hexdigest()  
+
+
+                    conn = sqlite3.connect('project_data.db')
+                    cursor = conn.cursor()
+
+                    cursor.execute("UPDATE usuario SET nome=?, email=?, senha=? WHERE registro=?",
+                                   (dados_atualizados['nome'], dados_atualizados['email'], senha_hash_blake2b, registro))
+
+                    conn.commit()
+                    conn.close()
+
+                    logging.debug("[ Usuário atualizado! ]")
+                    response = {
+                        "success": True,
+                        "message": "Usuário atualizado com sucesso."
+                    }
+                    return jsonify(response), 200
+                else:
+                    logging.debug("[ Parâmetros inválidos para atualização ]")
+                    return jsonify({"success": False, "message": "Parâmetros inválidos para atualização."}), 400
+            else:
+                logging.debug("[ Acesso negado para atualização ]")
+                return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para atualizar este usuário."}), 403
         else:
             logging.error('[ Acesso negado. Você não está autenticado. ]')
             return jsonify({"success": False, "message": "Acesso negado. Você não está autenticado."}), 401
