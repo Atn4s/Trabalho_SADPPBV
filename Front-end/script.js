@@ -2,6 +2,14 @@ let IP = localStorage.getItem('IP');
 let PORT = localStorage.getItem('PORT');
 let token = localStorage.getItem('token');
 
+    function limparTela() {
+        clearFields();
+        clearTable();
+        localStorage.removeItem('token'); // Remova o token do localStorage ao fazer logout
+        localStorage.removeItem('IP'); // Remova o IP do localStorage ao fazer logout
+        localStorage.removeItem('PORT'); // Remova o PORT do localStorage ao fazer logout
+    }
+
     if (token) {
         $('#options').show(); // Use o método .show() para exibir o elemento
         $('#loginForm').hide(); // Use o método .hide() para ocultar o elemento
@@ -64,7 +72,7 @@ let token = localStorage.getItem('token');
                     $('#loginForm').css('display', 'none');
                 },
                 error: function (error) {
-                    const errorObject = JSON.parse(error.responseText);
+                    const errorObject = (responseText);
                     alert(errorObject.message);                    
                 }
             });
@@ -113,8 +121,6 @@ let token = localStorage.getItem('token');
     }
 
     function addButtons(row, usuario) {
-//        console.log('Registro do usuário:', usuario.registro);
-        // Botão de Atualizar
         const updateButton = document.createElement('button');
         updateButton.innerHTML = 'Atualizar';
         updateButton.onclick = function() {
@@ -160,13 +166,30 @@ let token = localStorage.getItem('token');
         };
         row.appendChild(updateButton);
     
-        // Botão de Excluir
         const deleteButton = document.createElement('button');
         deleteButton.innerHTML = 'Excluir';
         deleteButton.onclick = function() {
-            // Lógica de exclusão do usuário aqui, por exemplo, chamar uma função de exclusão com o ID do usuário
-            // deleteUser(usuario.id);
-            console.log('Excluir usuário: ', usuario.nome);
+            $.ajax({
+                url: `http://${IP}:${PORT}/usuarios/${usuario.registro}`,
+                type: 'DELETE',
+                contentType: 'application/json',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                success: function (response) {
+                    alert(JSON.stringify(response));
+                },
+
+                error: function (error) {
+                    try {
+                        const errorObject = JSON.parse(error.responseText);
+                        alert(errorObject.message);  
+                    } catch (e) {
+                        console.log("Erro ao analisar JSON da resposta de erro:", e);
+                        alert("Erro desconhecido ao processar a resposta de erro.");
+                    }                  
+                }
+            });
         };
         row.appendChild(deleteButton);
     }
@@ -411,3 +434,10 @@ let token = localStorage.getItem('token');
         });
     }
     
+    $(document).ready(function () {
+        $('#options').append('<button class="limpar-tela">Limpar Tela</button>');
+        // Associe o evento de clique ao botão
+        $(document).on('click', '.limpar-tela', function () {
+            limparTela();
+        });
+    });

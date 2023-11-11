@@ -1,5 +1,5 @@
 import hashlib, sqlite3, sys, secrets, logging, traceback, re
-from datetime import timedelta 
+from datetime import timedelta, datetime 
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity 
 from flask_cors import CORS
@@ -124,6 +124,7 @@ def login():
     
 # Logout método POST 
 @app.route('/logout', methods=['POST'])
+@jwt_required()
 @verify_token
 def fazer_logout():
     try:
@@ -143,6 +144,7 @@ def fazer_logout():
         return jsonify({"success": False, "message": "Erro ao processar a solicitação de logout"}), 400 
 
 @app.route('/usuarios', methods=['POST'])
+@jwt_required()
 @verify_token
 def cadastrar_usuario():
     current_user = get_jwt_identity()
@@ -198,6 +200,7 @@ def cadastrar_usuario():
         return handle_exceptions(logging.error, e)
 
 @app.route('/usuarios', methods=['GET'])
+@jwt_required()
 @verify_token
 def get_usuario():
     try:
@@ -232,6 +235,7 @@ def get_usuario():
         return handle_exceptions(logging.error, e)
 
 @app.route('/usuarios/<int:registro>', methods=['GET'])
+@jwt_required()
 @verify_token
 def get_usuario_by_registro(registro):
     try:
@@ -268,6 +272,7 @@ def get_usuario_by_registro(registro):
 
 @app.route('/usuarios/<int:registro>', methods=['PUT'])
 @jwt_required()
+@verify_token
 def atualizar_usuario(registro):
     try:
         current_user = get_jwt_identity()
@@ -304,6 +309,64 @@ def atualizar_usuario(registro):
             else:
                 logging.debug("[ Acesso negado para atualização ]")
                 return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para atualizar este usuário."}), 403
+        else:
+            logging.error('[ Acesso negado. Você não está autenticado. ]')
+            return jsonify({"success": False, "message": "Acesso negado. Você não está autenticado."}), 401
+    except Exception as e:
+        return handle_exceptions(logging.error, e)
+    
+@app.route('/usuarios/<int:registro>', methods=['DELETE'])
+@jwt_required()
+@verify_token
+def deletar_usuario(registro):
+    try:
+        current_user = get_jwt_identity()
+        if current_user:
+            logging.debug(f"Recebida solicitação de deletar o usuário com registro {registro}")
+            if current_user['tipo_usuario'] == 1 or (current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro):  
+                logging.debug("Verificando permissões de deleção!")
+
+                if current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro or current_user['tipo_usuario'] == 1 and int(current_user['registro']) == registro:
+                    # Usuário está tentando deletar a si mesmo
+                    conn = sqlite3.connect('project_data.db')
+                    cursor = conn.cursor()
+
+                    cursor.execute("DELETE FROM usuario WHERE registro=?", (registro,))
+
+                    conn.commit()
+                    conn.close()
+
+                    # Realiza o logout após excluir o usuário
+                    auth_header = request.headers.get('Authorization')
+                    token = auth_header.split(" ")[1]
+                    revoked_tokens.add(token)
+
+                    logging.debug("[ Usuário deletado! Logout realizado com sucesso! ]")
+                    return code_response(logging.debug, "Usuário deletado! Logout realizado com sucesso!", 200)
+
+                elif int(current_user['tipo_usuario']) == int(1):
+                    # Usuário administrador está deletando outro usuário
+                    conn = sqlite3.connect('project_data.db')
+                    cursor = conn.cursor()
+
+                    cursor.execute("DELETE FROM usuario WHERE registro=?", (registro,))
+
+                    conn.commit()
+                    conn.close()
+
+                    logging.debug("[ Usuário deletado! ]")
+                    response = {
+                        "success": True,
+                        "message": "Usuário deletado com sucesso"
+                    }
+                    return jsonify(response), 200
+
+                else:
+                    logging.debug("[ Acesso negado para deleção ]")
+                    return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para deletar este usuário."}), 403
+            else:
+                logging.debug("[ Acesso negado para deleção ]")
+                return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para deletar este usuário."}), 403
         else:
             logging.error('[ Acesso negado. Você não está autenticado. ]')
             return jsonify({"success": False, "message": "Acesso negado. Você não está autenticado."}), 401
