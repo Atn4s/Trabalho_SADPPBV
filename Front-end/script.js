@@ -1,6 +1,7 @@
 let IP = localStorage.getItem('IP');
 let PORT = localStorage.getItem('PORT');
 let token = localStorage.getItem('token');
+let registroGlobal;
 
     function limparTela() {
         clearFields();
@@ -8,6 +9,7 @@ let token = localStorage.getItem('token');
         localStorage.removeItem('token'); // Remova o token do localStorage ao fazer logout
         localStorage.removeItem('IP'); // Remova o IP do localStorage ao fazer logout
         localStorage.removeItem('PORT'); // Remova o PORT do localStorage ao fazer logout
+        location.reload(); // Recarrega a página após a exclusão
     }
 
     if (token) {
@@ -70,10 +72,11 @@ let token = localStorage.getItem('token');
                     localStorage.setItem('token', token);
                     $('#options').css('display', 'block');
                     $('#loginForm').css('display', 'none');
+                    registroGlobal = registro;
                 },
                 error: function (error) {
-                    const errorObject = (responseText);
-                    alert(errorObject.message);                    
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));                
                 }
             });
         } else {
@@ -130,7 +133,6 @@ let token = localStorage.getItem('token');
     
             const senhaMD5 = md5(novaSenha);
 
-
             if (novoNome && novoEmail && senhaMD5) {
                 const dadosAtualizados = {
                     nome: novoNome,
@@ -153,7 +155,7 @@ let token = localStorage.getItem('token');
                     error: function (error) {
                         try {
                             const errorObject = JSON.parse(error.responseText);
-                            alert(errorObject.message);  
+                            alert(JSON.stringify(errorObject));
                         } catch (e) {
                             console.log("Erro ao analisar JSON da resposta de erro:", e);
                             alert("Erro desconhecido ao processar a resposta de erro.");
@@ -167,6 +169,14 @@ let token = localStorage.getItem('token');
         row.appendChild(updateButton);
     
         const deleteButton = document.createElement('button');
+        let vaideletar=false;
+        const registroUsuarioASerExcluido = usuario.registro;
+
+        if (parseInt(registroGlobal) == parseInt(registroUsuarioASerExcluido)) 
+        {
+            vaideletar = true;
+        }
+
         deleteButton.innerHTML = 'Excluir';
         deleteButton.onclick = function() {
             $.ajax({
@@ -178,12 +188,16 @@ let token = localStorage.getItem('token');
                 },
                 success: function (response) {
                     alert(JSON.stringify(response));
+                    if (vaideletar == true) {
+                        alert("Seu usuário foi deletado do sistema! Voltando a tela inicial!");
+                        limparTela();
+                    }
                 },
 
                 error: function (error) {
                     try {
                         const errorObject = JSON.parse(error.responseText);
-                        alert(errorObject.message);  
+                        alert(JSON.stringify(errorObject));
                     } catch (e) {
                         console.log("Erro ao analisar JSON da resposta de erro:", e);
                         alert("Erro desconhecido ao processar a resposta de erro.");
@@ -263,7 +277,7 @@ let token = localStorage.getItem('token');
                 table.appendChild(tableBody);
                 toggleTable(true); // Sempre mostra a tabela quando os usuários são listados
             } else {
-                console.error("Nenhum usuário encontrado.");
+                alert("Nenhum usuário encontrado.");
             }            
         },
         error: function (error) {
@@ -433,11 +447,3 @@ let token = localStorage.getItem('token');
             }
         });
     }
-    
-    $(document).ready(function () {
-        $('#options').append('<button class="limpar-tela">Limpar Tela</button>');
-        // Associe o evento de clique ao botão
-        $(document).on('click', '.limpar-tela', function () {
-            limparTela();
-        });
-    });
