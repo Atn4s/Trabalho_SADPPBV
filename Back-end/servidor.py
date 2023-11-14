@@ -220,6 +220,21 @@ def get_usuario():
                     "message": "Usuários encontrados"
                 }
                 return jsonify(response), 200
+            elif 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 0:  # Verifica se o tipo de usuário é 0 (comum)
+                conn = sqlite3.connect('project_data.db')
+                cursor = conn.cursor()
+                cursor.execute("SELECT id, nome, registro, email, tipo_usuario FROM usuario WHERE registro=?", (current_user['registro'],))
+                data = cursor.fetchone()
+                if data:
+                    usuarios = [{'id': data[0], 'nome': data[1], 'registro': data[2], 'email': data[3], 'tipo_usuario': data[4]}]
+                    conn.close()
+                    logging.debug("[ RESPOSTA: Listar usuário com sucesso! ]")
+                    response = {
+                        "usuarios": usuarios,
+                        "success": True,
+                        "message": "Usuários encontrados"
+                    }
+                    return jsonify(response), 200
             else:  # Se o tipo de usuário não for 1 (administrador), ele irá bloquear a consulta!
                 logging.debug("[ ERRO! Usuário coomum não pode listar ]")
                 return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para acessar esta rota."}), 403
