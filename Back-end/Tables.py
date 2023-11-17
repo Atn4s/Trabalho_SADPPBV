@@ -13,10 +13,6 @@ def initialize_database():
                           senha VARCHAR(150), 
                           tipo_usuario INTEGER)''')
 
-        cursor.execute('''CREATE TABLE IF NOT EXISTS blacklist 
-                          (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                          token TTL)''')
-
         cursor.execute('''CREATE TABLE IF NOT EXISTS rota 
                           (idrota INTEGER PRIMARY KEY AUTOINCREMENT, 
                           nome_rota VARCHAR(100),
@@ -43,7 +39,6 @@ def initialize_database():
         conn.commit()
         conn.close()
 
-        print("Tabelas criadas com sucesso.")
     except Exception as e:
         print(f"Ocorreu um erro: {e}")
 

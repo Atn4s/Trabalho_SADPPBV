@@ -1,4 +1,4 @@
-import hashlib, sqlite3, sys, secrets, logging, coloredlogs,traceback, re
+import hashlib, sqlite3, sys, secrets, logging, coloredlogs,traceback, regex as re
 from datetime import timedelta 
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity 
@@ -13,6 +13,10 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 key = secrets.token_hex(32)
 csrf_value = secrets.token_hex(32)
+
+# chaves caso precise testar reiniciando o servidor! Basta comentar as que estão acima e descomentar as abaixo
+# key = 'chavegeradaparatestesemflask'
+# csrf_value = 'chavegeradaparatestesemflask'
 
 app.config['JWT_SECRET_KEY'] = key
 app.config['JWT_BLACKLIST_ENABLED'] = True
@@ -73,7 +77,7 @@ def verify_token(f): # verificação do token a cada operação
     return decorated_function
 
 def get_user_info(current_user):
-    info_keys = ['user_id', 'tipo_usuario', 'senha', 'registro']
+    info_keys = ['user_id', 'tipo_usuario', 'registro']
     user_info = {key: current_user.get(key, 'não informado') for key in info_keys}
     return user_info
 
@@ -85,13 +89,12 @@ def handle_exceptions(logger, e):
     logger(f"Traceback: {traceback.format_exc()}")
     return jsonify({"success": False, "message": "Erro ao processar a solicitação"}), 400
 
-
-@app.route('/login', methods=['POST']) # Login método POST
+#Rota para o usuário fazer login!
+@app.route('/login', methods=['POST'])
 def login():
-    teste = request.get_json()
-    logging.debug(f"[ SOLICITAÇÃO! Pedido de login para o usuário: {teste}]")
     registro = request.json.get('registro', None)
     senha = request.json.get('senha', None)
+    logging.debug(f"[ SOLICITAÇÃO! Pedido de login para o usuário: {registro}]")
 
     try:
         if not registro or not senha:
@@ -113,14 +116,13 @@ def login():
             }, 
             expires_delta=ACCESS_EXPIRES
         )
-        user_info = get_user_info(current_user)
-        logging.debug(f"[ RESPOSTA: Login Autorizado para: {user_info}")
+        logging.debug(f"[ RESPOSTA: Login Autorizado para: {registro} ]")
         return jsonify({"success": True, "message": "Login bem-sucedido", "token": token, "registro": registro}), 200 # Token e pode usar meu sistema!
 
     except Exception as e:
         return handle_exceptions(logging.error, e)
     
-# Logout método POST 
+#Rota para o usuário fazer logout!
 @app.route('/logout', methods=['POST'])
 @jwt_required()
 @verify_token
@@ -140,6 +142,7 @@ def fazer_logout():
         logging.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"success": False, "message": "Erro ao processar a solicitação de logout"}), 400 
 
+#Rota para o usuário cadastrar!
 @app.route('/usuarios', methods=['POST'])
 @jwt_required()
 @verify_token
@@ -167,6 +170,30 @@ def cadastrar_usuario():
             if any(new_user.get(field) in (None, '') for field in required_fields):
                 logging.debug("[ ERRO! Dados de usuário ausentes ou em branco para cadastrar ]")
                 return jsonify({"success": False, "message": "Dados de usuário ausentes ou em branco. Por favor, forneça os dados necessários."}), 400            
+            elif not re.match(r'^[\p{L}\s]{3,}$', str(new_user.get('nome'))):
+                logging.debug("[ ERRO! O campo nome deve conter apenas letras e ter no mínimo 3 caracteres ]")
+                return jsonify({
+                    "success": False,
+                    "message": "O campo nome deve conter apenas letras e ter no mínimo 3 caracteres."
+                }), 400
+            elif not re.match(r'^\d{1,7}$', str(new_user.get('registro'))) or int(new_user.get('registro')) < 0:
+                logging.debug("[ ERRO! O campo registro deve conter no máximo 7 dígitos e não pode ser negativo ]")
+                return jsonify({
+                    "success": False,
+                    "message": "O campo registro deve conter no máximo 7 dígitos e não pode ser negativo."
+                }), 400
+            elif not re.match(r'^[^@]+@[^@]+\.[^@]+$', str(new_user.get('email'))):
+                logging.debug("[ ERRO! O campo email deve conter pelo menos um '@' e um '.' ]")
+                return jsonify({
+                    "success": False,
+                    "message": "O campo email deve conter pelo menos um '@' e um '.'."
+                }), 400
+            elif not re.match(r'^.{4,}$', str(new_user.get('senha'))):
+                logging.debug("[ ERRO! O campo senha deve ter no mínimo 4 caracteres ]")
+                return jsonify({
+                    "success": False,
+                    "message": "O campo senha deve ter no mínimo 4 caracteres."
+                }), 400
             elif new_user['tipo_usuario'] not in [0, 1]:
                 logging.debug("[ ERRO! Tipo de usuário inválido ]")
                 return jsonify({"success": False, "message": "Tipo de usuário inválido. O tipo de usuário deve ser 0 ou 1."}), 400
@@ -195,6 +222,7 @@ def cadastrar_usuario():
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
+#Rota para o listar usuário!
 @app.route('/usuarios', methods=['GET'])
 @jwt_required()
 @verify_token
@@ -244,11 +272,20 @@ def get_usuario():
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-@app.route('/usuarios/<int:registro>', methods=['GET'])
+#Rota para o listar usuário apartir de um registro (ID)!
+@app.route('/usuarios/<registro>', methods=['GET'])
 @jwt_required()
 @verify_token
 def get_usuario_by_registro(registro):
     try:
+        if registro.isdigit():
+            registro = int(registro)  # Converte o registro para inteiro
+        elif re.match("^[0-9]+$", registro):
+            # Se a string contém apenas números, converte para inteiro
+            registro = int(registro)
+        else:
+            logging.debug("Registro inválido. Deve ser um número inteiro.")
+            return jsonify({"success": False, "message": "Registro inválido. Deve ser um número inteiro."}), 400
         current_user = get_jwt_identity()
         if current_user:
             if current_user['tipo_usuario'] == 1 or (current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro):  # Verifica se pode buscar                logging.debug("Verificando permissões de acesso")
@@ -280,18 +317,52 @@ def get_usuario_by_registro(registro):
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-@app.route('/usuarios/<int:registro>', methods=['PUT'])
+#Rota para o atualizar o usuário apartir de um registro (ID)!
+@app.route('/usuarios/<registro>', methods=['PUT'])
 @jwt_required()
 @verify_token
 def atualizar_usuario(registro):
     try:
+        if registro.isdigit():
+            registro = int(registro)  # Converte o registro para inteiro
+        elif re.match("^[0-9]+$", registro):
+            # Se a string contém apenas números, converte para inteiro
+            registro = int(registro)
+        else:
+            logging.debug("Registro inválido. Deve ser um número inteiro.")
+            return jsonify({"success": False, "message": "Registro inválido. Deve ser um número inteiro."}), 400
         current_user = get_jwt_identity()
         if current_user:
-            logging.debug(f"[ SOLICITAÇÃO! Solicitação de atualização de cadastro para o usuário com registro {registro}")
+            logging.debug(f"[ SOLICITAÇÃO! Solicitação de atualização de cadastro para o usuário com registro {registro} ]")
             if current_user['tipo_usuario'] == 1 or (current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro):  
                 dados_atualizados = request.get_json()
 
                 if 'nome' in dados_atualizados and 'email' in dados_atualizados and 'senha' in dados_atualizados:
+                    # Validação do campo 'nome'
+                    if not re.match(r'^[\p{L}\s]{3,}$', str(dados_atualizados['nome'])):
+                        logging.debug("[ ERRO! O campo nome deve conter apenas letras e ter no mínimo 3 caracteres ]")
+                        return jsonify({
+                            "success": False,
+                            "message": "O campo nome deve conter apenas letras e ter no mínimo 3 caracteres."
+                        }), 400
+
+                    # Validação do campo 'email'
+                    elif not re.match(r'^[^@]+@[^@]+\.[^@]+$', str(dados_atualizados['email'])):
+                        logging.debug("[ ERRO! O campo email deve conter pelo menos um '@' e um '.' ]")
+                        return jsonify({
+                            "success": False,
+                            "message": "O campo email deve conter pelo menos um '@' e um '.'."
+                        }), 400
+
+                    # Validação do campo 'senha'
+                    elif not re.match(r'^.{4,}$', str(dados_atualizados['senha'])):
+                        logging.debug("[ ERRO! O campo senha deve ter no mínimo 4 caracteres ]")
+                        return jsonify({
+                            "success": False,
+                            "message": "O campo senha deve ter no mínimo 4 caracteres."
+                        }), 400
+
+
                     senha_hash_blake2b = hashlib.blake2b(dados_atualizados['senha'].encode()).hexdigest()  
 
                     conn = sqlite3.connect('project_data.db')
@@ -320,6 +391,7 @@ def atualizar_usuario(registro):
     except Exception as e:
         return handle_exceptions(logging.error, e)
     
+#Rota para deletar o usuário apartir de um registro (ID)!
 @app.route('/usuarios/<int:registro>', methods=['DELETE'])
 @jwt_required()
 @verify_token
