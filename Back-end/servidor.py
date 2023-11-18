@@ -156,47 +156,47 @@ def cadastrar_usuario():
             new_user = request.json
             if not new_user:
                 logging.debug("[ ERRO! Dados de usuário ausentes para cadastrar ]")
-                return jsonify({"success": False, "message": "Dados de usuário ausentes. Por favor, forneça os dados necessários."}), 400 
+                return jsonify({"success": False, "message": "Dados de usuário ausentes. Por favor, forneça os dados necessários."}), 403 
             
             if not re.match(r'^\d+$', str(new_user.get('registro'))) and not re.match(r'^"\d+"$', str(new_user.get('registro'))):
                 logging.debug("[ ERRO! O campo registro deve conter apenas números ]")
                 return jsonify({
                     "success": False,
                     "message": "O campo registro deve conter apenas números. Por favor, insira um valor numérico."
-                }), 400
+                }), 403
 
             required_fields = ['nome', 'registro', 'email', 'senha', 'tipo_usuario']
 
             if any(new_user.get(field) in (None, '') for field in required_fields):
                 logging.debug("[ ERRO! Dados de usuário ausentes ou em branco para cadastrar ]")
-                return jsonify({"success": False, "message": "Dados de usuário ausentes ou em branco. Por favor, forneça os dados necessários."}), 400            
+                return jsonify({"success": False, "message": "Dados de usuário ausentes ou em branco. Por favor, forneça os dados necessários."}), 403            
             elif not re.match(r'^[\p{L}\s]{3,}$', str(new_user.get('nome'))):
                 logging.debug("[ ERRO! O campo nome deve conter apenas letras e ter no mínimo 3 caracteres ]")
                 return jsonify({
                     "success": False,
                     "message": "O campo nome deve conter apenas letras e ter no mínimo 3 caracteres."
-                }), 400
+                }), 403
             elif not re.match(r'^\d{1,7}$', str(new_user.get('registro'))) or int(new_user.get('registro')) < 0:
                 logging.debug("[ ERRO! O campo registro deve conter no máximo 7 dígitos e não pode ser negativo ]")
                 return jsonify({
                     "success": False,
                     "message": "O campo registro deve conter no máximo 7 dígitos e não pode ser negativo."
-                }), 400
+                }), 403
             elif not re.match(r'^[^@]+@[^@]+\.[^@]+$', str(new_user.get('email'))):
                 logging.debug("[ ERRO! O campo email deve conter pelo menos um '@' e um '.' ]")
                 return jsonify({
                     "success": False,
                     "message": "O campo email deve conter pelo menos um '@' e um '.'."
-                }), 400
+                }), 403
             elif not re.match(r'^.{4,}$', str(new_user.get('senha'))):
                 logging.debug("[ ERRO! O campo senha deve ter no mínimo 4 caracteres ]")
                 return jsonify({
                     "success": False,
                     "message": "O campo senha deve ter no mínimo 4 caracteres."
-                }), 400
+                }), 403
             elif new_user['tipo_usuario'] not in [0, 1]:
                 logging.debug("[ ERRO! Tipo de usuário inválido ]")
-                return jsonify({"success": False, "message": "Tipo de usuário inválido. O tipo de usuário deve ser 0 ou 1."}), 400
+                return jsonify({"success": False, "message": "Tipo de usuário inválido. O tipo de usuário deve ser 0 ou 1."}), 403
             else:
                 conn = sqlite3.connect('project_data.db')
                 cursor = conn.cursor()
@@ -209,7 +209,7 @@ def cadastrar_usuario():
                     return code_response("Novo usuário cadastrado com sucesso.",200)
                 except sqlite3.IntegrityError as e:
                     logging.debug("[ ERRO! Usuário já cadastrado com esse REGISTRO ]")
-                    return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 400 
+                    return jsonify({"success": False, "message": "O registro já está em uso. Por favor, escolha um registro diferente."}), 403 
                 except sqlite3.Error as e:
                     logging.error(f"ERRO SQLITE3: {e}")
                     logging.error(f"Traceback: {traceback.format_exc()}")
@@ -263,8 +263,8 @@ def get_usuario():
                         "message": "Usuários encontrados"
                     }
                     return jsonify(response), 200
-            else:  # Se o tipo de usuário não for 1 (administrador), ele irá bloquear a consulta!
-                logging.debug("[ ERRO! Usuário coomum não pode listar ]")
+            else:  # Se o tipo de usuário não for 1 ou 0 ele vai cair aqui! (se cair) 
+                logging.debug("[ ERRO! Usuário que não for [0] ou [1] não pode listar ]")
                 return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para acessar esta rota."}), 403
         else:
             logging.error("[ ERRO! Não foi possível obter as informações do usuário ]")
@@ -279,13 +279,12 @@ def get_usuario():
 def get_usuario_by_registro(registro):
     try:
         if registro.isdigit():
-            registro = int(registro)  # Converte o registro para inteiro
+            registro = int(registro)  
         elif re.match("^[0-9]+$", registro):
-            # Se a string contém apenas números, converte para inteiro
             registro = int(registro)
         else:
             logging.debug("Registro inválido. Deve ser um número inteiro.")
-            return jsonify({"success": False, "message": "Registro inválido. Deve ser um número inteiro."}), 400
+            return jsonify({"success": False, "message": "Registro inválido. Deve ser um número inteiro."}), 403
         current_user = get_jwt_identity()
         if current_user:
             if current_user['tipo_usuario'] == 1 or (current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro):  # Verifica se pode buscar                logging.debug("Verificando permissões de acesso")
@@ -324,13 +323,12 @@ def get_usuario_by_registro(registro):
 def atualizar_usuario(registro):
     try:
         if registro.isdigit():
-            registro = int(registro)  # Converte o registro para inteiro
+            registro = int(registro) 
         elif re.match("^[0-9]+$", registro):
-            # Se a string contém apenas números, converte para inteiro
             registro = int(registro)
         else:
             logging.debug("Registro inválido. Deve ser um número inteiro.")
-            return jsonify({"success": False, "message": "Registro inválido. Deve ser um número inteiro."}), 400
+            return jsonify({"success": False, "message": "Registro inválido. Deve ser um número inteiro."}), 403
         current_user = get_jwt_identity()
         if current_user:
             logging.debug(f"[ SOLICITAÇÃO! Solicitação de atualização de cadastro para o usuário com registro {registro} ]")
@@ -344,7 +342,7 @@ def atualizar_usuario(registro):
                         return jsonify({
                             "success": False,
                             "message": "O campo nome deve conter apenas letras e ter no mínimo 3 caracteres."
-                        }), 400
+                        }), 403
 
                     # Validação do campo 'email'
                     elif not re.match(r'^[^@]+@[^@]+\.[^@]+$', str(dados_atualizados['email'])):
@@ -352,7 +350,7 @@ def atualizar_usuario(registro):
                         return jsonify({
                             "success": False,
                             "message": "O campo email deve conter pelo menos um '@' e um '.'."
-                        }), 400
+                        }), 403
 
                     # Validação do campo 'senha'
                     elif not re.match(r'^.{4,}$', str(dados_atualizados['senha'])):
@@ -360,8 +358,7 @@ def atualizar_usuario(registro):
                         return jsonify({
                             "success": False,
                             "message": "O campo senha deve ter no mínimo 4 caracteres."
-                        }), 400
-
+                        }), 403
 
                     senha_hash_blake2b = hashlib.blake2b(dados_atualizados['senha'].encode()).hexdigest()  
 
@@ -369,19 +366,24 @@ def atualizar_usuario(registro):
                     cursor = conn.cursor()
                     cursor.execute("UPDATE usuario SET nome=?, email=?, senha=? WHERE registro=?",
                                    (dados_atualizados['nome'], dados_atualizados['email'], senha_hash_blake2b, registro))
+                    rows_affected = cursor.rowcount  # Get the number of rows affected by the UPDATE statement
 
-                    conn.commit()
-                    conn.close()
+                    if rows_affected > 0:
+                        conn.commit()
+                        conn.close()
 
-                    logging.debug("[ RESPOSTA: Usuário atualizado! ]")
-                    response = {
-                        "success": True,
-                        "message": "Usuário atualizado com sucesso."
-                    }
-                    return jsonify(response), 200
+                        logging.debug("[ RESPOSTA: Usuário atualizado! ]")
+                        response = {
+                            "success": True,
+                            "message": "Usuário atualizado com sucesso."
+                        }
+                        return jsonify(response), 200                    
+                    else:
+                        logging.debug("[ ERRO! Usuário não encontrado ]")
+                        return jsonify({"success": False, "message": "O usuário com o registro especificado não foi encontrado."}), 404
                 else:
                     logging.debug("[ ERRO! Parâmetros inválidos para atualização ]")
-                    return jsonify({"success": False, "message": "Parâmetros inválidos para atualização."}), 400
+                    return jsonify({"success": False, "message": "Parâmetros inválidos para atualização."}), 403
             else:
                 logging.debug("[ ERRO! Acesso negado para atualização ]")
                 return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para atualizar este usuário."}), 403
@@ -392,11 +394,18 @@ def atualizar_usuario(registro):
         return handle_exceptions(logging.error, e)
     
 #Rota para deletar o usuário apartir de um registro (ID)!
-@app.route('/usuarios/<int:registro>', methods=['DELETE'])
+@app.route('/usuarios/<registro>', methods=['DELETE'])
 @jwt_required()
 @verify_token
 def deletar_usuario(registro):
     try:
+        if registro.isdigit():
+            registro = int(registro) 
+        elif re.match("^[0-9]+$", registro):
+            registro = int(registro)
+        else:
+            logging.debug("Registro inválido. Deve ser um número inteiro.")
+            return jsonify({"success": False, "message": "Registro inválido. Deve ser um número inteiro."}), 403
         current_user = get_jwt_identity()
         if current_user:
             logging.debug(f"[ SOLICITAÇÃO! Deletar o usuário com registro {registro} ]")
@@ -411,7 +420,6 @@ def deletar_usuario(registro):
                     conn.commit()
                     conn.close()
 
-                    # Realiza o logout após excluir o usuário
                     auth_header = request.headers.get('Authorization')
                     token = auth_header.split(" ")[1]
                     revoked_tokens.add(token)
@@ -426,16 +434,20 @@ def deletar_usuario(registro):
 
                     cursor.execute("DELETE FROM usuario WHERE registro=?", (registro,))
 
-                    conn.commit()
-                    conn.close()
+                    rows_affected = cursor.rowcount  
+                    if rows_affected > 0:
+                        conn.commit()
+                        conn.close()
 
-                    logging.debug("[ RESPOSTA: Usuário deletado! ]")
-                    response = {
-                        "success": True,
-                        "message": "Usuário deletado com sucesso"
-                    }
-                    return jsonify(response), 200
-
+                        logging.debug("[ RESPOSTA: Usuário deletado! ]")
+                        response = {
+                            "success": True,
+                            "message": "Usuário deletado com sucesso"
+                        }
+                        return jsonify(response), 200            
+                    else:
+                        logging.debug("[ ERRO! Usuário não encontrado ]")
+                        return jsonify({"success": False, "message": "O usuário com o registro especificado não foi encontrado."}), 404
                 else:
                     logging.debug("[ ERRO! Acesso negado para deleção ]")
                     return jsonify({"success": False, "message": "Acesso negado. Você não tem permissão para deletar este usuário."}), 403
