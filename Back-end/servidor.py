@@ -733,7 +733,7 @@ def get_segmentos():
 @app.route('/segmentos/<segmento_id>', methods=['GET'])
 @jwt_required()
 @verify_token
-def get_segmento(id):
+def get_segmento(segmento_id):
     try:
         if segmento_id.isdigit():
             segmento_id = int(segmento_id) 
