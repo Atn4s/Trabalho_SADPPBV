@@ -13,6 +13,20 @@ def initialize_database():
                           senha VARCHAR(150), 
                           tipo_usuario INTEGER)''')
 
+        cursor.execute('''CREATE TABLE IF NOT EXISTS ponto 
+                          (idponto INTEGER PRIMARY KEY AUTOINCREMENT, 
+                          nome VARCHAR(100))''')
+
+        cursor.execute('''CREATE TABLE IF NOT EXISTS segmento 
+                          (idsegmento INTEGER PRIMARY KEY AUTOINCREMENT, 
+                          distancia REAL, 
+                          ponto_inicial INTEGER,
+                          ponto_final INTEGER,
+                          status BOOLEAN,
+                          direcao VARCHAR(20),
+                          FOREIGN KEY(ponto_inicial) REFERENCES ponto(idponto),
+                          FOREIGN KEY(ponto_final) REFERENCES ponto(idponto))''')      
+
         cursor.execute('''CREATE TABLE IF NOT EXISTS rota 
                           (idrota INTEGER PRIMARY KEY AUTOINCREMENT, 
                           nome_rota VARCHAR(100),
@@ -25,16 +39,6 @@ def initialize_database():
                           FOREIGN KEY(id_rota) REFERENCES rota(idrota), 
                           FOREIGN KEY(id_segmento) REFERENCES segmento(idsegmento), 
                           PRIMARY KEY(id_rota,id_segmento))''')
-
-        cursor.execute('''CREATE TABLE IF NOT EXISTS segmento 
-                          (idsegmento INTEGER PRIMARY KEY AUTOINCREMENT, 
-                          nome VARCHAR(100), 
-                          distancia INTEGER, 
-                          direcao VARCHAR(20), 
-                          partida VARCHAR(50), 
-                          chegada VARCHAR(50), 
-                          ordem INTEGER, 
-                          status BOOLEAN)''')
 
         conn.commit()
         conn.close()
