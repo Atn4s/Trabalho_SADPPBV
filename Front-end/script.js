@@ -41,6 +41,25 @@ let registroGlobal;
         }
     }
 
+    function clearTabela() {
+        const table = document.getElementById('tablePontos');
+        if (table) {
+            table.innerHTML = '';
+        }
+    }
+
+    function clearTabela2() {
+        const table = document.getElementById('tablePontos');
+        if (table) {
+            const tbody = table.querySelector('tbody');
+            if (tbody) {
+                while (tbody.firstChild) {
+                    tbody.removeChild(tbody.firstChild);
+                }
+            }
+        }
+    }
+
     if (IP && PORT) {
         $('#options').css('display', 'block');
         $('#loginForm').css('display', 'none');
@@ -96,6 +115,7 @@ let registroGlobal;
                 console.log(response);
                 clearFields();
                 clearTable(); // Limpa a tabela de usuários ao fazer logout
+                clearTabela();
                 localStorage.removeItem('token'); // Remova o token do localStorage ao fazer logout
                 localStorage.removeItem('IP'); // Remova o IP do localStorage ao fazer logout
                 localStorage.removeItem('PORT'); // Remova o PORT do localStorage ao fazer logout
@@ -112,14 +132,18 @@ let registroGlobal;
     let tableVisible = false; // Variável para controlar a visibilidade da tabela
     let table; // Variável para a tabela
 
-    function toggleTable(show) {
-        table = document.getElementById('tableUsuarios');
-        if (show) {
-            table.style.display = 'block'; // Mostra a tabela
-            tableVisible = true;
+    function toggleTable(tableId, show) {
+        let table = document.getElementById(tableId);
+        if (table) {
+            if (show) {
+                table.style.display = 'block'; // Mostra a tabela
+                tableVisible = true;
+            } else {
+                table.style.display = 'none'; // Esconde a tabela
+                tableVisible = false;
+            }
         } else {
-            table.style.display = 'none'; // Esconde a tabela
-            tableVisible = false;
+            console.error('Tabela não encontrada com o ID:', tableId);
         }
     }
 
@@ -275,7 +299,7 @@ let registroGlobal;
                 }                
                 
                 table.appendChild(tableBody);
-                toggleTable(true); // Sempre mostra a tabela quando os usuários são listados
+                toggleTable('tableUsuarios', true); // Mostra a tabela de usuários
             } else {
                 alert("Nenhum usuário encontrado.");
             }            
@@ -288,7 +312,8 @@ let registroGlobal;
         } else {
             clearTable(); // Limpa a tabela antes de ocultar
             tableVisible = false; // Define a tabela como oculta
-            toggleTable(false); // Esconde a tabela
+            toggleTable('tableUsuarios', false); // Mostra a tabela de usuários
+            // toggleTable(false); // Esconde a tabela
         }
     }
 
@@ -361,7 +386,8 @@ let registroGlobal;
                         addButtons(row, usuario); // Adiciona botões para cada linha de usuário
 
                         table.appendChild(tableBody);
-                        toggleTable(true);
+                        toggleTable('tableUsuarios', true); // Mostra a tabela de usuários
+                        //toggleTable(true);
                     } else {
                         alert("Usuário não encontrado.");
                     }
@@ -446,4 +472,396 @@ let registroGlobal;
                 alert(JSON.stringify(errorObject));
             }
         });
+    }
+
+    // Função para cadastrar ponto
+    function cadastrarPonto() {
+        let nome;
+
+        while(!nome || !nome.trim()){
+            nome = prompt('Digite o nome do ponto');
+            if(!nome || !nome.trim()){
+                alert("Insira um NOME válido!")
+            }
+        }
+        
+        {
+            $.ajax({
+                url: `http://${IP}:${PORT}/pontos`,
+                type: 'POST',
+                contentType: 'application/json',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                data: JSON.stringify({ nome }),
+                success: function (response) {
+                    alert(JSON.stringify(response));
+                },
+                error: function (error) {
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));
+                }
+            });
+        }
+    }
+
+    function listarPontos() {
+        let table = document.getElementById('tablePontos');
+        let tbody;
+    
+        if (!table) {
+            // Cria a tabela se não existir
+            table = document.createElement('table');
+            table.id = 'tablePontos';
+            document.body.appendChild(table);
+    
+            // Cria o corpo da tabela
+            tbody = document.createElement('tbody');
+            table.appendChild(tbody);
+        } else {
+            // Se a tabela já existe, obtém o corpo existente
+            tbody = table.querySelector('tbody');
+    
+            // Limpa o conteúdo do corpo da tabela
+            while (tbody.firstChild) {
+                tbody.removeChild(tbody.firstChild);
+            }
+        }
+    
+        if (!tableVisible) {
+            $.ajax({
+                url: `http://${IP}:${PORT}/pontos`,
+                type: 'GET',
+                contentType: 'application/json',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                success: function (response) {
+                    console.log(response);
+                    if (response && response.pontos && response.pontos.length > 0) {
+                        const pontos = response.pontos;
+    
+                        // Preenche o corpo da tabela
+                        for (let i = 0; i < pontos.length; i++) {
+                            const ponto = pontos[i];
+                            
+                            // Dentro da lógica que preenche o corpo da tabela
+                            const row = tbody.insertRow(i);
+    
+                            const cell1 = row.insertCell(0);
+                            cell1.innerHTML = ponto.nome;
+    
+                            const cell2 = row.insertCell(1);
+                            cell2.innerHTML = ponto.ponto_id;
+    
+                            // Célula 3: Botões de Ação
+                            const cell3 = row.insertCell(2);
+    
+                            // Adiciona botão de Atualizar
+                            const btnAtualizar = document.createElement('button');
+                            btnAtualizar.innerHTML = 'Atualizar';
+                            btnAtualizar.onclick = function() {
+                                atualizarPonto(ponto.ponto_id); // Chama a função de atualizar com o ID do ponto
+                            };
+                            cell3.appendChild(btnAtualizar);
+    
+                            // Adiciona botão de Excluir
+                            const btnExcluir = document.createElement('button');
+                            btnExcluir.innerHTML = 'Excluir';
+                            btnExcluir.onclick = function() {
+                                excluirPonto(ponto.ponto_id); // Chama a função de excluir com o ID do ponto
+                            };
+                            cell3.appendChild(btnExcluir);
+                        }
+    
+                        toggleTable('tablePontos', true); // Mostra a tabela de pontos
+                    } else {
+                        alert("Nenhum ponto encontrado.");
+                    }
+                },
+                error: function (error) {
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));
+                }
+            });
+        } else {
+            clearTabela2(); // Limpa a tabela antes de ocultar
+            tableVisible = false; // Define a tabela como oculta
+        
+            // Certifique-se de que a tabela e o tbody ainda existem
+            const table = document.getElementById('tablePontos');
+            const tbody = table ? table.querySelector('tbody') : null;
+        
+            if (tbody) {
+                toggleTable('tablePontos', false); // Esconde a tabela de pontos
+            } else {
+                // Lógica para lidar com o caso em que tbody não é encontrado
+                console.error("Tbody não encontrado.");
+            }
+        }
+    }
+
+    // Função para obter detalhes de um ponto específico
+    function obterPonto() {
+        let pontoId; 
+
+        while(!pontoId || !pontoId.trim()){
+            pontoId = prompt("Digite o ID do ponto:");
+            if(!pontoId || !pontoId.trim()){
+                alert("Insira um ID válido!")
+            }
+        }
+
+        {
+            $.ajax({
+                url: `http://${IP}:${PORT}/pontos/${pontoId}`,
+                type: 'GET',
+                contentType: 'application/json',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                success: function (response) {
+                    let ponto;
+                    console.log(response);
+                    if (response && response.ponto || response.pontos) {
+                        if (response && response.ponto) {
+                            ponto = response.ponto;
+                        } else if (response && response.pontos) {
+                            ponto = response.pontos;
+                        }
+    
+                        clearTabela();
+    
+                        let table = document.getElementById('tablePontos');
+                        if (!table) {
+                            table = document.createElement('table');
+                            table.id = 'tablePontos';
+                            document.body.appendChild(table);
+                        }
+    
+                        const thead = table.createTHead();
+                        const row = thead.insertRow();
+    
+                        // Cabeçalho 1: nome
+                        const th1 = document.createElement('th');
+                        th1.innerHTML = 'Nome';
+                        row.appendChild(th1);
+    
+                        // Cabeçalho 2: ponto_id
+                        const th2 = document.createElement('th');
+                        th2.innerHTML = 'ID do Ponto';
+                        row.appendChild(th2);
+    
+                        const tableBody = document.createElement('tbody');
+                        const newRow = tableBody.insertRow(0);
+    
+                        const cell1 = newRow.insertCell(0);
+                        cell1.innerHTML = ponto.nome;
+    
+                        const cell2 = newRow.insertCell(1);
+                        cell2.innerHTML = ponto.ponto_id;
+    
+                        // Célula 3: Botões de Ação
+                        const cell3 = newRow.insertCell(2);
+
+                        // Adiciona botão de Atualizar
+                        const btnAtualizar = document.createElement('button');
+                        btnAtualizar.innerHTML = 'Atualizar';
+                        btnAtualizar.onclick = function() {
+                            atualizarPonto(ponto.ponto_id); // Chama a função de atualizar com o ID do ponto
+                        };
+                        cell3.appendChild(btnAtualizar);
+
+                        // Adiciona botão de Excluir
+                        const btnExcluir = document.createElement('button');
+                        btnExcluir.innerHTML = 'Excluir';
+                        btnExcluir.onclick = function() {
+                            excluirPonto(ponto.ponto_id); // Chama a função de excluir com o ID do ponto
+                        };
+                        cell3.appendChild(btnExcluir);
+    
+                        table.appendChild(tableBody);
+                        toggleTable('tablePontos', true); // Mostra a tabela de pontos
+                    } else {
+                        alert("Ponto não encontrado.");
+                    }
+                },
+                error: function (error) {
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));
+                }
+            });
+        }
+    }
+
+    function atualizarPonto(pontoId) {
+        const novoNome = prompt("Digite o novo nome do ponto:");
+        if (novoNome) {
+            $.ajax({
+                url: `http://${IP}:${PORT}/pontos/${pontoId}`,
+                type: 'PUT',
+                contentType: 'application/json',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                data: JSON.stringify({ nome: novoNome }),
+                success: function (response) {
+                    alert(JSON.stringify(response));
+                },
+                error: function (error) {
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));
+                }
+            });
+        }
+    }
+    
+    function excluirPonto(pontoId) {
+        $.ajax({
+            url: `http://${IP}:${PORT}/pontos/${pontoId}`,
+            type: 'DELETE',
+            contentType: 'application/json',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            success: function (response) {
+                alert(JSON.stringify(response));
+            },
+            error: function (error) {
+                const errorObject = JSON.parse(error.responseText);
+                alert(JSON.stringify(errorObject));
+            }
+        });
+    }
+
+    // Função para criar um novo segmento
+    function criarSegmento() {
+        // Implemente a lógica para obter os dados do novo segmento a ser cadastrado
+        const novoSegmento = {
+            // Dados do novo segmento
+        };
+
+        $.ajax({
+            url: `http://${IP}:${PORT}/segmentos`,
+            type: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            data: JSON.stringify(novoSegmento),
+            success: function (response) {
+                alert(JSON.stringify(response));
+            },
+            error: function (error) {
+                const errorObject = JSON.parse(error.responseText);
+                alert(JSON.stringify(errorObject));
+            }
+        });
+    }
+
+    // Função para listar todos os segmentos
+    function listarSegmentos() {
+        $.ajax({
+            url: `http://${IP}:${PORT}/segmentos`,
+            type: 'GET',
+            contentType: 'application/json',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            success: function (response) {
+                alert(JSON.stringify(response));
+            },
+            error: function (error) {
+                const errorObject = JSON.parse(error.responseText);
+                alert(JSON.stringify(errorObject));
+            }
+        });
+    }
+
+    // Função para buscar segmento por ID
+    function obterSegmento() {
+        let segmentoId;  
+        
+        while(!segmentoId || !segmentoId.trim()){
+            segmentoId = prompt("Digite o ID do segmento:");
+            if(!segmentoId || !segmentoId.trim()){
+                alert("Insira um ID válido!")
+            }
+        }
+
+        {
+            $.ajax({
+                url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
+                type: 'GET',
+                contentType: 'application/json',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                success: function (response) {
+                    alert(JSON.stringify(response));
+                },
+                error: function (error) {
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));
+                }
+            });
+        }
+    }
+
+    // Função para atualizar um segmento específico
+    function atualizarSegmento() {
+        const segmentoId = prompt("Digite o ID do segmento a ser atualizado:");
+        if (segmentoId) {
+            // Implemente a lógica para obter os dados atualizados do segmento
+            const dadosAtualizados = {
+                // Dados atualizados do segmento
+            };
+
+            $.ajax({
+                url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
+                type: 'PUT',
+                contentType: 'application/json',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                data: JSON.stringify(dadosAtualizados),
+                success: function (response) {
+                    alert(JSON.stringify(response));
+                },
+                error: function (error) {
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));
+                }
+            });
+        }
+    }
+
+    // Função para excluir um segmento específico
+    function excluirSegmento() {
+        let segmentoId;
+
+        while(!segmentoId || !segmentoId.trim()){
+            segmentoId  = prompt("Digite o ID do segmento a ser excluído:");
+            if(!segmentoId || !segmentoId.trim()){
+                alert("Insira um ID válido!")
+            }
+        }
+
+        {
+            $.ajax({
+                url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
+                type: 'DELETE',
+                contentType: 'application/json',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                success: function (response) {
+                    alert(JSON.stringify(response));
+                },
+                error: function (error) {
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));
+                }
+            });
+        }
     }
