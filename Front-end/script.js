@@ -530,7 +530,9 @@ let tbody = [];
                     tbody.removeChild(tbody.firstChild);
                 }
             } else {
-                console.log("O elemento tbody não foi encontrado. Tabela de Listar Pontos não será carregada!");
+                // Se tbody não existe, cria um novo elemento tbody
+                tbody = document.createElement('tbody');
+                table.appendChild(tbody);
             }
         }
     
