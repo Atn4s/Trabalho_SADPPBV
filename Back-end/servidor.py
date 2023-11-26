@@ -667,10 +667,6 @@ def create_segmento():
 
             required_fields = ['distancia', 'ponto_inicial', 'ponto_final', 'status', 'direcao']
 
-            for field in required_fields:
-                if not data.get(field):
-                    return jsonify({"success": False, "message": f"Campo {field} não pode ser nulo ou em branco"}), 403
-
             if data['distancia'] <= 0 :
                 return jsonify({"success": False, "message": "Distância deve ser maior que zero"}), 403
 
@@ -682,8 +678,10 @@ def create_segmento():
                 return jsonify({"success": False, "message": "Pontos inicial e/ou final não existem"}), 403
 
             # Verificar se a distância é maior que zero
-            if data['distancia'] <= 0:
-                return jsonify({"success": False, "message": "Distância deve ser maior que zero"}), 403
+
+            if data['status'] not in [0, 1]:
+                logging.debug("[ ERRO! Status Inválido OLHE PROTOCOLO 0 OU 1 ]")
+                return jsonify({"success": False, "message": "Tipo de status inválido. O status de deve ser 0 ou 1."}), 403
 
             # Verificar se o segmento já existe
             cursor.execute('''SELECT COUNT(*) FROM segmento 
@@ -724,7 +722,7 @@ def get_segmentos():
 
     # Convert data to the desired format
     result = [{'segmento_id': s[0], 'ponto_inicial': s[2], 'ponto_final': s[3],
-               'status': bool(s[4]), 'distancia': s[1], 'direcao': s[5]} for s in segmentos]
+               'status': int(s[4]), 'distancia': s[1], 'direcao': s[5]} for s in segmentos]
 
     return jsonify({'segmentos': result, 'success': True, 'message': 'Lista de todos os segmentos'}), 200
 

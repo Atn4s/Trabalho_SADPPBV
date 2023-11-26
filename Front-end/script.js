@@ -2,6 +2,7 @@ let IP = localStorage.getItem('IP');
 let PORT = localStorage.getItem('PORT');
 let token = localStorage.getItem('token');
 let registroGlobal;
+let tbody = [];
 
     function limparTela() {
         clearFields();
@@ -507,7 +508,7 @@ let registroGlobal;
 
     function listarPontos() {
         let table = document.getElementById('tablePontos');
-        let tbody;
+        var tbody;
     
         if (!table) {
             // Cria a tabela se não existir
@@ -522,9 +523,14 @@ let registroGlobal;
             // Se a tabela já existe, obtém o corpo existente
             tbody = table.querySelector('tbody');
     
-            // Limpa o conteúdo do corpo da tabela
-            while (tbody.firstChild) {
-                tbody.removeChild(tbody.firstChild);
+            // Verifica se tbody existe antes de limpar seu conteúdo
+            if (tbody) {    
+                // Limpa o conteúdo do corpo da tabela
+                while (tbody.firstChild) {
+                    tbody.removeChild(tbody.firstChild);
+                }
+            } else {
+                console.log("O elemento tbody não foi encontrado. Tabela de Listar Pontos não será carregada!");
             }
         }
     
@@ -596,7 +602,7 @@ let registroGlobal;
                 toggleTable('tablePontos', false); // Esconde a tabela de pontos
             } else {
                 // Lógica para lidar com o caso em que tbody não é encontrado
-                console.error("Tbody não encontrado.");
+                console.log("Tbody não encontrado.");
             }
         }
     }
@@ -736,9 +742,73 @@ let registroGlobal;
 
     // Função para criar um novo segmento
     function criarSegmento() {
-        // Implemente a lógica para obter os dados do novo segmento a ser cadastrado
-        const novoSegmento = {
-            // Dados do novo segmento
+        let ponto_inicial;
+        while(!ponto_inicial || !ponto_inicial.trim()){
+            ponto_inicial = prompt('Informe o ponto_inicial para o segmento:');
+            if(!ponto_inicial || !ponto_inicial.trim()){
+                alert("Insira um ponto_inicial válido!")
+            }
+        }
+
+        let ponto_final;
+        while(!ponto_final || !ponto_final.trim()){
+            ponto_final = prompt('Informe o ponto_final para o segmento:');
+            if(!ponto_final || !ponto_final.trim()){
+                alert("Insira um ponto_final válido!")
+            }
+        }
+
+        let distancia;
+        while (distancia === undefined || distancia === null) {
+            const userInput = prompt('Informe a distância do Segmento:');
+
+            if (userInput === null) {
+                // O usuário pressionou "Cancelar" no prompt
+                alert("Operação cancelada");
+                break;
+            }
+
+            distancia = parseFloat(userInput.replace(',', '.'));
+
+            if (isNaN(distancia)) {
+                alert("Insira uma distância válida!");
+                distancia = undefined; // Define como undefined para continuar o loop
+            }
+        }
+               
+        let status;
+
+        while (status !== 0 && status !== 1) {
+            const userInput = prompt('Informe o status para o segmento: [0 ou 1]');
+
+            if (userInput === null) {
+                // O usuário pressionou "Cancelar" no prompt
+                alert("Operação cancelada");
+                break;
+            }
+
+            status = parseInt(userInput);
+
+            if (isNaN(status) || (status !== 0 && status !== 1)) {
+                alert("Insira um status válido (0 ou 1)!");
+                status = undefined; // Define como undefined para continuar o loop
+            }
+        }
+
+        let direcao;
+        while(!direcao || !direcao.trim()){
+            direcao = prompt('Informe o direcao para o segmento:');
+            if(!direcao || !direcao.trim()){
+                alert("Insira uma direcao válido!")
+            }
+        }
+
+        const segmento = {
+            distancia: distancia,
+            ponto_inicial: ponto_inicial,
+            ponto_final: ponto_final,
+            status: status,
+            direcao: direcao
         };
 
         $.ajax({
@@ -748,7 +818,7 @@ let registroGlobal;
             headers: {
                 'Authorization': `Bearer ${token}`
             },
-            data: JSON.stringify(novoSegmento),
+            data: JSON.stringify(segmento),
             success: function (response) {
                 alert(JSON.stringify(response));
             },
