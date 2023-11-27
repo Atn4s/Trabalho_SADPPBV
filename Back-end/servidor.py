@@ -734,13 +734,18 @@ def get_segmentos():
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
 
-    # Retrieve data from the database
-    cursor.execute('''SELECT * FROM segmento''')
+    # Retrieve data from the database with a JOIN to get the names of ponto_inicial and ponto_final
+    cursor.execute('''SELECT s.idsegmento, s.distancia, p1.nome AS ponto_inicial, p2.nome AS ponto_final,
+                            s.status, s.direcao 
+                    FROM segmento s
+                    INNER JOIN ponto p1 ON s.ponto_inicial = p1.idponto
+                    INNER JOIN ponto p2 ON s.ponto_final = p2.idponto''')
+
     segmentos = cursor.fetchall()
 
     # Convert data to the desired format
-    result = [{'segmento_id': s[0], 'ponto_inicial': s[2], 'ponto_final': s[3],
-               'status': int(s[4]), 'distancia': s[1], 'direcao': s[5]} for s in segmentos]
+    result = [{'segmento_id': s[0], 'distancia': s[1], 'ponto_inicial': s[2], 'ponto_final': s[3],
+            'status': int(s[4]), 'direcao': s[5]} for s in segmentos]
 
     logging.debug(f"[ RESPOSTA: Lista de todos os segmentos! ]")
     return jsonify({'segmentos': result, 'success': True, 'message': 'Lista de todos os segmentos'}), 200
@@ -766,15 +771,30 @@ def get_segmento(segmento_id):
         # Add your authentication logic here if needed
         conn = sqlite3.connect('project_data.db')
         cursor = conn.cursor()
-        # Retrieve data from the database
-        cursor.execute('''SELECT * FROM segmento WHERE idsegmento = ?''', (segmento_id,))
+
+        # Retrieve data from the database with a JOIN to get the names of ponto_inicial and ponto_final
+        cursor.execute('''SELECT s.idsegmento, s.distancia, p1.nome AS ponto_inicial, p2.nome AS ponto_final,
+                                s.status, s.direcao 
+                        FROM segmento s
+                        INNER JOIN ponto p1 ON s.ponto_inicial = p1.idponto
+                        INNER JOIN ponto p2 ON s.ponto_final = p2.idponto
+                        WHERE s.idsegmento = ?''', (segmento_id,))
+
         segmento = cursor.fetchone()
 
         if segmento:
-            result = {'segmento': {'segmento_id': segmento[0], 'ponto_inicial': segmento[2],
-                                'ponto_final': segmento[3], 'status': bool(segmento[4]),
-                                'distancia': segmento[1], 'direcao': segmento[5]},
-                    'success': True, 'message': 'Segmento encontrado'}
+            result = {
+                'segmento': {
+                    'segmento_id': segmento[0],
+                    'ponto_inicial': segmento[2],
+                    'ponto_final': segmento[3],
+                    'status': bool(segmento[4]),
+                    'distancia': segmento[1],
+                    'direcao': segmento[5]
+                },
+                'success': True,
+                'message': 'Segmento encontrado'
+            }
             
             logging.debug(f"[ RESPOSTA: Segmento encontrado! ]")
             return jsonify(result), 200
