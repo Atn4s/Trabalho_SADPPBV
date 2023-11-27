@@ -627,6 +627,8 @@ let tbody = [];
             }
         }
 
+        pontoId = parseInt(pontoId);
+
         {
             $.ajax({
                 url: `http://${IP}:${PORT}/pontos/${pontoId}`,
@@ -712,6 +714,8 @@ let tbody = [];
     function atualizarPonto(pontoId) {
         const novoNome = prompt("Digite o novo nome do ponto:");
         if (novoNome) {
+            pontoId = parseInt(pontoId);
+
             $.ajax({
                 url: `http://${IP}:${PORT}/pontos/${pontoId}`,
                 type: 'PUT',
@@ -732,6 +736,7 @@ let tbody = [];
     }
     
     function excluirPonto(pontoId) {
+        pontoId = parseInt(pontoId);
         $.ajax({
             url: `http://${IP}:${PORT}/pontos/${pontoId}`,
             type: 'DELETE',
@@ -759,6 +764,8 @@ let tbody = [];
             }
         }
 
+        ponto_inicial = parseInt(ponto_inicial);
+
         let ponto_final;
         while(!ponto_final || !ponto_final.trim()){
             ponto_final = prompt('Informe o ponto_final para o segmento:');
@@ -766,6 +773,8 @@ let tbody = [];
                 alert("Insira um ponto_final válido!")
             }
         }
+
+        ponto_final = parseInt(ponto_final);
 
         let distancia;
         while (distancia === undefined || distancia === null) {
@@ -969,6 +978,7 @@ let tbody = [];
             }
         }
 
+        segmentoId = parseInt(segmentoId);
         // Realiza a chamada AJAX para obter o segmento com o ID fornecido
         $.ajax({
             url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
@@ -1054,6 +1064,8 @@ let tbody = [];
             }
         }
 
+        ponto_inicial = parseInt(ponto_inicial);
+
         let ponto_final;
         while(!ponto_final || !ponto_final.trim()){
             ponto_final = prompt('Informe o ponto_final para atualizar o segmento:');
@@ -1061,6 +1073,8 @@ let tbody = [];
                 alert("Insira um ponto_final válido!")
             }
         }
+
+        ponto_final = parseInt(ponto_final);
 
         let distancia;
         while (distancia === undefined || distancia === null) {
@@ -1115,6 +1129,7 @@ let tbody = [];
             direcao: direcao
         };
 
+        segmentoId = parseInt(segmentoId);
 
             $.ajax({
                 url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
@@ -1136,6 +1151,7 @@ let tbody = [];
     
     // Função para excluir um segmento específico
     function excluirSegmento(segmentoId) {    
+        segmentoId = parseInt(segmentoId);
             $.ajax({
                 url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
                 type: 'DELETE',

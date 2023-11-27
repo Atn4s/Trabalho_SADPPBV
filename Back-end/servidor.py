@@ -469,14 +469,15 @@ def deletar_usuario(registro):
 def cadastrar_ponto():
     try:
         current_user = get_jwt_identity()        
-        logging.debug(f"[ SOLICITAÇÃO! Solicitação de cadastro de ponto, solicitado pelo usuário com {current_user} ]")
+        user_info = get_user_info(current_user)
+        logging.debug(f"[ SOLICITAÇÃO! Solicitação de cadastro de ponto, solicitado pelo usuário {user_info} ]")
 
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1: 
             nome = request.json.get('nome', None)
 
             if not nome:
                 logging.debug(f"[ ERRO! Nome do ponto não fornecido ]")
-                return jsonify({"success": False, "message": "Nome do ponto não fornecido"}), 400
+                return jsonify({"success": False, "message": "Nome do ponto não fornecido"}), 403
 
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
@@ -488,7 +489,7 @@ def cadastrar_ponto():
             if existing_point:
                 conn.close()
                 logging.debug(f"[ RESPOSTA: ERRO! Ponto já existe: {nome} ]")
-                return jsonify({"success": False, "message": "Ponto já existe"}), 400
+                return jsonify({"success": False, "message": "Ponto já existe"}), 403
 
             # Inserir um novo ponto na tabela de ponto
             cursor.execute("INSERT INTO ponto (nome) VALUES (?)", (nome,))
@@ -511,7 +512,8 @@ def cadastrar_ponto():
 def listar_pontos():
     try:
         current_user = get_jwt_identity()
-        logging.debug(f"[ SOLICITAÇÃO! Solicitação de listagem de pontos, solicitado pelo usuário com {current_user} ]")
+        user_info = get_user_info(current_user)
+        logging.debug(f"[ SOLICITAÇÃO! Solicitação de listagem de pontos, solicitado pelo usuário {user_info} ]")
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1 or 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 0 : 
 
             conn = sqlite3.connect('project_data.db')
@@ -538,7 +540,8 @@ def listar_pontos():
 @verify_token
 def obter_ponto(ponto_id):
     current_user = get_jwt_identity()        
-    logging.debug(f"[ SOLICITAÇÃO! Listagem do ponto {ponto_id}, solicitado pelo usuário com {current_user} ]")
+    user_info = get_user_info(current_user)
+    logging.debug(f"[ SOLICITAÇÃO! Listagem do ponto {ponto_id}, solicitado pelo usuário {user_info} ]")
     try:
         if ponto_id.isdigit():
             ponto_id = int(ponto_id) 
@@ -547,7 +550,7 @@ def obter_ponto(ponto_id):
         else:
             logging.debug(f"[ ERRO! Ponto inválido. Deve ser um número inteiro! ]")
             return jsonify({"success": False, "message": "Ponto inválido. Deve ser um número inteiro."}), 403
-        logging.debug(f"[ SOLICITAÇÃO! Solicitação de listar o ponto {ponto_id}, solicitado pelo usuário com {current_user} ]")
+        logging.debug(f"[ SOLICITAÇÃO! Solicitação de listar o ponto {ponto_id}, solicitado pelo usuário com {user_info} ]")
 
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1 or 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 0 : 
             conn = sqlite3.connect('project_data.db')
@@ -577,7 +580,8 @@ def obter_ponto(ponto_id):
 @verify_token
 def atualizar_ponto(ponto_id):
     current_user = get_jwt_identity()
-    logging.debug(f"[ SOLICITAÇÃO! Solicitação de atualizar o ponto {ponto_id}, solicitado pelo usuário com {current_user} ]")
+    user_info = get_user_info(current_user)
+    logging.debug(f"[ SOLICITAÇÃO! Solicitação de atualizar o ponto {ponto_id}, solicitado pelo usuário {user_info} ]")
     try:
         if ponto_id.isdigit():
             ponto_id = int(ponto_id) 
@@ -591,7 +595,7 @@ def atualizar_ponto(ponto_id):
 
             if not nome:
                 logging.debug("[ ERRO! Nome do ponto não fornecido ]")
-                return jsonify({"success": False, "message": "Nome do ponto não fornecido"}), 400
+                return jsonify({"success": False, "message": "Nome do ponto não fornecido"}), 403
 
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
@@ -623,7 +627,8 @@ def atualizar_ponto(ponto_id):
 @verify_token
 def excluir_ponto(ponto_id):
     current_user = get_jwt_identity()
-    logging.debug(f"[ SOLICITAÇÃO! Solicitação de excluir o ponto {ponto_id}, solicitado pelo usuário com {current_user} ]")
+    user_info = get_user_info(current_user)
+    logging.debug(f"[ SOLICITAÇÃO! Solicitação de excluir o ponto {ponto_id}, solicitado pelo usuário {user_info} ]")
     try:
         if ponto_id.isdigit():
             ponto_id = int(ponto_id) 
@@ -665,7 +670,8 @@ def excluir_ponto(ponto_id):
 def create_segmento():
     try:
         current_user = get_jwt_identity()
-        logging.debug(f"[ SOLICITAÇÃO! Solicitação de cadastrar segmento, solicitado pelo usuário com {current_user} ]")
+        user_info = get_user_info(current_user)
+        logging.debug(f"[ SOLICITAÇÃO! Solicitação de cadastrar segmento, solicitado pelo usuário {user_info} ]")
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1: 
             data = request.json
 
@@ -723,7 +729,8 @@ def create_segmento():
 @verify_token
 def get_segmentos():    
     current_user = get_jwt_identity()
-    logging.debug(f"[ SOLICITAÇÃO! Solicitação de listagem de segmentos, solicitado pelo usuário com {current_user} ]")
+    user_info = get_user_info(current_user)
+    logging.debug(f"[ SOLICITAÇÃO! Solicitação de listagem de segmentos, solicitado pelo usuário {user_info} ]")
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
 
@@ -745,7 +752,8 @@ def get_segmentos():
 @verify_token
 def get_segmento(segmento_id):
     current_user = get_jwt_identity()
-    logging.debug(f"[ SOLICITAÇÃO! Solicitação de listar o segmento {segmento_id}, solicitado pelo usuário com {current_user} ]")
+    user_info = get_user_info(current_user)
+    logging.debug(f"[ SOLICITAÇÃO! Solicitação de listar o segmento {segmento_id}, solicitado pelo usuário {user_info} ]")
     try:
         if segmento_id.isdigit():
             segmento_id = int(segmento_id) 
@@ -782,7 +790,8 @@ def get_segmento(segmento_id):
 @verify_token
 def update_segmento(segmento_id):
     current_user = get_jwt_identity()
-    logging.debug(f"[ SOLICITAÇÃO! Solicitação de atualizar o segmento {segmento_id}, solicitado pelo usuário com {current_user} ]")
+    user_info = get_user_info(current_user)
+    logging.debug(f"[ SOLICITAÇÃO! Solicitação de atualizar o segmento {segmento_id}, solicitado pelo usuário  {user_info} ]")
     try:
         if segmento_id.isdigit():
             segmento_id = int(segmento_id) 
@@ -803,6 +812,18 @@ def update_segmento(segmento_id):
             if data['distancia'] <= 0 :
                 logging.debug(f"[ ERRO: Distância deve ser maior que zero ]")
                 return jsonify({"success": False, "message": "Distância deve ser maior que zero"}), 403
+
+             # Verificar se os pontos inicial e final existem
+            cursor.execute("SELECT COUNT(*) FROM ponto WHERE idponto IN (?, ?)", (data['ponto_inicial'], data['ponto_final']))
+            count = cursor.fetchone()[0]
+
+            if count != 2:
+                logging.debug(f"[ ERRO! Pontos inicial e/ou final não existem!]")
+                return jsonify({"success": False, "message": "Pontos inicial e/ou final não existem"}), 403
+
+            if data['status'] not in [0, 1]:
+                logging.debug(f"[ ERRO! Status Inválido OLHE PROTOCOLO 0 OU 1 ]")
+                return jsonify({"success": False, "message": "Tipo de status inválido. O status de deve ser 0 ou 1."}), 403
 
             # Update data in the database
             cursor.execute('''UPDATE segmento 
@@ -826,7 +847,8 @@ def update_segmento(segmento_id):
 @verify_token
 def delete_segmento(segmento_id):
     current_user = get_jwt_identity()
-    logging.debug(f"[ SOLICITAÇÃO! Solicitação de deletar o segmento {segmento_id}, solicitado pelo usuário com {current_user} ]")
+    user_info = get_user_info(current_user)
+    logging.debug(f"[ SOLICITAÇÃO! Solicitação de deletar o segmento {segmento_id}, solicitado pelo usuário {user_info} ]")
     try:
         if segmento_id.isdigit():
             segmento_id = int(segmento_id) 
