@@ -849,6 +849,8 @@ let tbody = [];
                     'Authorization': `Bearer ${token}`
                 },
                 success: function (response) {
+                    console.log(response);
+
                     let segmentos = response.segmentos;
 
                     clearTabela3(); // Limpa a tabela existente, se houver
@@ -976,6 +978,8 @@ let tbody = [];
                 'Authorization': `Bearer ${token}`
             },
             success: function (response) {
+                console.log(response);
+
                 // Limpa a tabela existente, se houver
                 clearTabela3();
 
