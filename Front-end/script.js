@@ -49,6 +49,13 @@ let tbody = [];
         }
     }
 
+    function clearTabela3() {
+        const table = document.getElementById('tableSegmentos');
+        if (table) {
+            table.innerHTML = '';
+        }
+    }
+
     function clearTabela2() {
         const table = document.getElementById('tablePontos');
         if (table) {
@@ -833,15 +840,198 @@ let tbody = [];
 
     // Função para listar todos os segmentos
     function listarSegmentos() {
+        if (!tableVisible) {
+            $.ajax({
+                url: `http://${IP}:${PORT}/segmentos`,
+                type: 'GET',
+                contentType: 'application/json',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                success: function (response) {
+                    let segmentos = response.segmentos;
+
+                    clearTabela3(); // Limpa a tabela existente, se houver
+
+                    let table = document.getElementById('tableSegmentos');
+                    if (!table) {
+                        table = document.createElement('table');
+                        table.id = 'tableSegmentos';
+                        document.body.appendChild(table);
+                    }
+
+                    const thead = table.createTHead();
+                    const row = thead.insertRow();
+
+                    // Cabeçalho 1: direcao
+                    const th1 = document.createElement('th');
+                    th1.innerHTML = 'Direção';
+                    row.appendChild(th1);
+
+                    // Cabeçalho 2: distancia
+                    const th2 = document.createElement('th');
+                    th2.innerHTML = 'Distância';
+                    row.appendChild(th2);
+
+                    // Cabeçalho 3: ponto_final
+                    const th3 = document.createElement('th');
+                    th3.innerHTML = 'Ponto Final';
+                    row.appendChild(th3);
+
+                    // Cabeçalho 4: ponto_inicial
+                    const th4 = document.createElement('th');
+                    th4.innerHTML = 'Ponto Inicial';
+                    row.appendChild(th4);
+
+                    // Cabeçalho 5: segmento_id
+                    const th5 = document.createElement('th');
+                    th5.innerHTML = 'ID do Segmento';
+                    row.appendChild(th5);
+
+                    // Cabeçalho 6: status
+                    const th6 = document.createElement('th');
+                    th6.innerHTML = 'Status';
+                    row.appendChild(th6);
+
+                    // Itera sobre os segmentos e adiciona linhas à tabela
+                    for (let i = 0; i < segmentos.length; i++) {
+                        const newRow = table.insertRow();
+                        const cell1 = newRow.insertCell(0);
+                        cell1.innerHTML = segmentos[i].direcao;
+
+                        const cell2 = newRow.insertCell(1);
+                        cell2.innerHTML = segmentos[i].distancia;
+
+                        const cell3 = newRow.insertCell(2);
+                        cell3.innerHTML = segmentos[i].ponto_final;
+
+                        const cell4 = newRow.insertCell(3);
+                        cell4.innerHTML = segmentos[i].ponto_inicial;
+
+                        const cell5 = newRow.insertCell(4);
+                        cell5.innerHTML = segmentos[i].segmento_id;
+
+                        const cell6 = newRow.insertCell(5);
+                        cell6.innerHTML = segmentos[i].status;
+                        
+                         // Adiciona célula para os botões de ação
+                        const cellAcao = newRow.insertCell(6);
+
+                        // Adiciona botão de Atualizar
+                        const btnAtualizar = document.createElement('button');
+                        btnAtualizar.innerHTML = 'Atualizar';
+                        btnAtualizar.onclick = function () {
+                            atualizarSegmento(segmentos[i].segmento_id); // Chama a função de atualizar com o ID do segmento
+                        };
+                        cellAcao.appendChild(btnAtualizar);
+
+                        // Adiciona botão de Excluir
+                        const btnExcluir = document.createElement('button');
+                        btnExcluir.innerHTML = 'Excluir';
+                        btnExcluir.onclick = function () {
+                            excluirSegmento(segmentos[i].segmento_id); // Chama a função de excluir com o ID do segmento
+                        };
+                        cellAcao.appendChild(btnExcluir);
+                    }
+
+                    table.appendChild(thead);
+                    toggleTable('tableSegmentos', true); // Mostra a tabela de segmentos
+                },
+                error: function (error) {
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));
+                }
+            });
+        } else {
+            clearTabela3(); // Limpa a tabela antes de ocultar
+            tableVisible = false; // Define a tabela como oculta
+        
+            // Certifique-se de que a tabela e o tbody ainda existem
+            const table = document.getElementById('tablePontos');
+            const tbody = table ? table.querySelector('tbody') : null;
+        
+            if (tbody) {
+                toggleTable('tablePontos', false); // Esconde a tabela de pontos
+            } 
+        }
+    }
+
+    // Função para buscar segmento por ID
+    function obterSegmento() {
+        // Pede ao usuário que insira o ID do segmento
+        let segmentoId;
+        while (!segmentoId || !segmentoId.trim()) {
+            segmentoId = prompt("Digite o ID do segmento:");
+            if (!segmentoId || !segmentoId.trim()) {
+                alert("Insira um ID válido!");
+            }
+        }
+
+        // Realiza a chamada AJAX para obter o segmento com o ID fornecido
         $.ajax({
-            url: `http://${IP}:${PORT}/segmentos`,
+            url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
             type: 'GET',
             contentType: 'application/json',
             headers: {
                 'Authorization': `Bearer ${token}`
             },
             success: function (response) {
-                alert(JSON.stringify(response));
+                // Limpa a tabela existente, se houver
+                clearTabela3();
+
+                // Verifica se a resposta contém um segmento
+                if (response.segmento) {
+                    const segmento = response.segmento;
+
+                    let table = document.createElement('table');
+                    table.id = 'tableSegmentos';
+                    document.body.appendChild(table);
+
+                    const thead = table.createTHead();
+                    const row = thead.insertRow();
+
+                    // Adiciona cabeçalhos à tabela
+                    for (const key in segmento) {
+                        if (segmento.hasOwnProperty(key)) {
+                            const th = document.createElement('th');
+                            th.innerHTML = key;
+                            row.appendChild(th);
+                        }
+                    }
+
+                    // Adiciona uma linha à tabela com os dados do segmento obtido
+                    const newRow = table.insertRow();
+                    for (const key in segmento) {
+                        if (segmento.hasOwnProperty(key)) {
+                            const cell = newRow.insertCell();
+                            cell.innerHTML = segmento[key];
+                        }
+                    }
+
+                      // Adiciona célula para os botões de ação
+                      const cellAcao = newRow.insertCell(6);
+
+                      // Adiciona botão de Atualizar
+                      const btnAtualizar = document.createElement('button');
+                      btnAtualizar.innerHTML = 'Atualizar';
+                      btnAtualizar.onclick = function () {
+                          atualizarSegmento(segmentoId); // Chama a função de atualizar com o ID do segmento
+                      };
+                      cellAcao.appendChild(btnAtualizar);
+
+                      // Adiciona botão de Excluir
+                      const btnExcluir = document.createElement('button');
+                      btnExcluir.innerHTML = 'Excluir';
+                      btnExcluir.onclick = function () {
+                          excluirSegmento(segmentoId); // Chama a função de excluir com o ID do segmento
+                      };
+                      cellAcao.appendChild(btnExcluir);
+
+                    table.appendChild(thead);
+                    toggleTable('tableSegmentos', true); // Mostra a tabela de segmentos
+                } else {
+                    alert('Segmento não encontrado');
+                }
             },
             error: function (error) {
                 const errorObject = JSON.parse(error.responseText);
@@ -850,44 +1040,77 @@ let tbody = [];
         });
     }
 
-    // Função para buscar segmento por ID
-    function obterSegmento() {
-        let segmentoId;  
-        
-        while(!segmentoId || !segmentoId.trim()){
-            segmentoId = prompt("Digite o ID do segmento:");
-            if(!segmentoId || !segmentoId.trim()){
-                alert("Insira um ID válido!")
+    // Função para atualizar um segmento específico
+    function atualizarSegmento(segmentoId) {    
+        let ponto_inicial;
+        while(!ponto_inicial || !ponto_inicial.trim()){
+            ponto_inicial = prompt('Informe o ponto_inicial para atualizar o segmento:');
+            if(!ponto_inicial || !ponto_inicial.trim()){
+                alert("Insira um ponto_inicial válido!")
             }
         }
 
-        {
-            $.ajax({
-                url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
-                type: 'GET',
-                contentType: 'application/json',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                success: function (response) {
-                    alert(JSON.stringify(response));
-                },
-                error: function (error) {
-                    const errorObject = JSON.parse(error.responseText);
-                    alert(JSON.stringify(errorObject));
-                }
-            });
+        let ponto_final;
+        while(!ponto_final || !ponto_final.trim()){
+            ponto_final = prompt('Informe o ponto_final para atualizar o segmento:');
+            if(!ponto_final || !ponto_final.trim()){
+                alert("Insira um ponto_final válido!")
+            }
         }
-    }
 
-    // Função para atualizar um segmento específico
-    function atualizarSegmento() {
-        const segmentoId = prompt("Digite o ID do segmento a ser atualizado:");
-        if (segmentoId) {
-            // Implemente a lógica para obter os dados atualizados do segmento
-            const dadosAtualizados = {
-                // Dados atualizados do segmento
-            };
+        let distancia;
+        while (distancia === undefined || distancia === null) {
+            const userInput = prompt('Informe a distância atualizada do Segmento:');
+
+            if (userInput === null) {
+                // O usuário pressionou "Cancelar" no prompt
+                alert("Operação cancelada");
+                break;
+            }
+
+            distancia = parseFloat(userInput.replace(',', '.'));
+
+            if (isNaN(distancia)) {
+                alert("Insira uma distância válida!");
+                distancia = undefined; // Define como undefined para continuar o loop
+            }
+        }
+               
+        let status;
+
+        while (status !== 0 && status !== 1) {
+            const userInput = prompt('Informe o novo status para o segmento: [0 ou 1]');
+
+            if (userInput === null) {
+                // O usuário pressionou "Cancelar" no prompt
+                alert("Operação cancelada");
+                break;
+            }
+
+            status = parseInt(userInput);
+
+            if (isNaN(status) || (status !== 0 && status !== 1)) {
+                alert("Insira um status válido (0 ou 1)!");
+                status = undefined; // Define como undefined para continuar o loop
+            }
+        }
+
+        let direcao;
+        while(!direcao || !direcao.trim()){
+            direcao = prompt('Informe o direcao para o segmento:');
+            if(!direcao || !direcao.trim()){
+                alert("Insira uma direcao válido!")
+            }
+        }
+
+        const dadosAtualizados = {
+            distancia: distancia,
+            ponto_inicial: ponto_inicial,
+            ponto_final: ponto_final,
+            status: status,
+            direcao: direcao
+        };
+
 
             $.ajax({
                 url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
@@ -905,21 +1128,10 @@ let tbody = [];
                     alert(JSON.stringify(errorObject));
                 }
             });
-        }
     }
-
+    
     // Função para excluir um segmento específico
-    function excluirSegmento() {
-        let segmentoId;
-
-        while(!segmentoId || !segmentoId.trim()){
-            segmentoId  = prompt("Digite o ID do segmento a ser excluído:");
-            if(!segmentoId || !segmentoId.trim()){
-                alert("Insira um ID válido!")
-            }
-        }
-
-        {
+    function excluirSegmento(segmentoId) {    
             $.ajax({
                 url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
                 type: 'DELETE',
@@ -935,5 +1147,5 @@ let tbody = [];
                     alert(JSON.stringify(errorObject));
                 }
             });
-        }
     }
+    

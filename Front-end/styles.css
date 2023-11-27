@@ -129,14 +129,14 @@ input[type=submit] {
     height: 40%;
 }
 
-#tableUsuarios, #tablePontos {
+#tableUsuarios, #tablePontos, #tableSegmentos {
     padding-top: 2%;
     margin: 0 auto; 
     border-collapse: collapse; 
     width: 50%; 
 }
 
-#tableUsuarios th, #tableUsuarios td, #tablePontos th, #tablePontos td{
+#tableUsuarios th, #tableUsuarios td, #tablePontos th, #tablePontos td, #tableSegmentos td, #tableSegmentos th{
     background-color: black;
     color: white;
     border: 1px solid white; 
@@ -144,7 +144,7 @@ input[type=submit] {
     text-align: center; 
 }
 
-#tableUsuarios th, #tablePontos th {
+#tableUsuarios th, #tablePontos th, #tableSegmentos th {
     background-color: black;
     color: white;
 }

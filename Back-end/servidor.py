@@ -665,7 +665,7 @@ def create_segmento():
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
 
-            required_fields = ['distancia', 'ponto_inicial', 'ponto_final', 'status', 'direcao']
+            data['distancia'] = int(data['distancia'])
 
             if data['distancia'] <= 0 :
                 return jsonify({"success": False, "message": "Distância deve ser maior que zero"}), 403
@@ -780,11 +780,7 @@ def update_segmento(segmento_id):
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
 
-            required_fields = ['distancia', 'ponto_inicial', 'ponto_final', 'status', 'direcao']
-
-            for field in required_fields:
-                if not data.get(field):
-                    return jsonify({"success": False, "message": f"Campo {field} não pode ser nulo ou em branco"}), 403
+            data['distancia'] = int(data['distancia'])            
 
             if data['distancia'] <= 0 :
                 return jsonify({"success": False, "message": "Distância deve ser maior que zero"}), 403
