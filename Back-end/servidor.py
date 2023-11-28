@@ -678,7 +678,7 @@ def create_segmento():
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
 
-            data['distancia'] = int(data['distancia'])
+            data['distancia'] = float(data['distancia'])
 
             if data['distancia'] <= 0 :
                 logging.debug(f"[ ERRO! Distância deve ser maior que zero! ]")
@@ -827,7 +827,7 @@ def update_segmento(segmento_id):
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
 
-            data['distancia'] = int(data['distancia'])            
+            data['distancia'] = float(data['distancia'])            
 
             if data['distancia'] <= 0 :
                 logging.debug(f"[ ERRO: Distância deve ser maior que zero ]")
@@ -840,6 +840,8 @@ def update_segmento(segmento_id):
             if count != 2:
                 logging.debug(f"[ ERRO! Pontos inicial e/ou final não existem!]")
                 return jsonify({"success": False, "message": "Pontos inicial e/ou final não existem"}), 403
+
+            data['status'] = int(data['status'])
 
             if data['status'] not in [0, 1]:
                 logging.debug(f"[ ERRO! Status Inválido OLHE PROTOCOLO 0 OU 1 ]")
