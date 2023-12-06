@@ -26,6 +26,12 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         SimpleHTTPRequestHandler.end_headers(self)
 
+    def copyfile(self, source, outputfile):
+        try:
+            super().copyfile(source, outputfile)
+        except BrokenPipeError:
+            pass
+
 if len(sys.argv) > 1:
     try:
         port = int(sys.argv[1])

@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity 
 from flask_cors import CORS
 from functools import wraps
+from collections import defaultdict
 import heapq
 import Tables
 import logging
@@ -148,20 +149,26 @@ def login():
 @verify_token
 def fazer_logout():
     try:
-        auth_header = request.headers.get('Authorization') # Obtenha o token JWT do header
-        token = auth_header.split(" ")[1]  
+        auth_header = request.headers.get('Authorization')
+        token = auth_header.split(" ")[1]
         current_user = get_jwt_identity()
         user_info = get_user_info(current_user)
         logging.debug(f"[ SOLICITAÇÃO! Pedido de logout de: {user_info} ]")
 
-        revoked_tokens.add(token) # Adicione o token à lista de tokens revogados logo não será possível reutiliza-lo!
-        logging.debug(f"[ RESPOSTA: Logout de {user_info} Realizado com sucesso! ]")
-        usuarios_ativos.remove((user_info['registro'], user_info['tipo_usuario']))
-        return code_response("Logout bem-sucedido!",200)
+        if (user_info['registro'], user_info['tipo_usuario']) in usuarios_ativos:
+            usuarios_ativos.remove((user_info['registro'], user_info['tipo_usuario']))
+            logging.debug(f"[ RESPOSTA: Logout de {user_info} Realizado com sucesso! ]")
+            revoked_tokens.add(token)
+            return code_response("Logout bem-sucedido!", 200)
+        else:
+            logging.warning(f"Usuário {user_info} não encontrado em usuarios_ativos.")
+            return code_response("Usuário não encontrado em usuarios_ativos", 404)
+
     except Exception as e:
         logging.error(f"Erro ao processar o logout: {e}")
         logging.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({"success": False, "message": "Erro ao processar a solicitação de logout"}), 400 
+        return jsonify({"success": False, "message": "Erro ao processar a solicitação de logout"}), 400
+
 
 #Rota para o usuário cadastrar!
 @app.route('/usuarios', methods=['POST'])
@@ -934,41 +941,79 @@ def build_graph():
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
 
-    cursor.execute("SELECT idponto FROM ponto")
+    cursor.execute("SELECT idponto, nome FROM ponto")
     pontos = cursor.fetchall()
 
-    # Usar o ID do ponto como chave para o dicionário
-    graph = {ponto[0]: {} for ponto in pontos}
+    graph = defaultdict(dict)
 
     cursor.execute("SELECT ponto_inicial, ponto_final, distancia, direcao, status FROM segmento")
     segmentos = cursor.fetchall()
 
-    print("Pontos no banco de dados:")
-    print([ponto[0] for ponto in pontos])
+    for ponto_id, ponto_nome in pontos:
+        graph[ponto_nome] = {}
 
-    for segmento in segmentos:
-        ponto_inicial, ponto_final, distancia, direcao, status = segmento
-        print(f"Segmento: Ponto Inicial: {ponto_inicial}, Ponto Final: {ponto_final}, Distância: {distancia}, Direção: {direcao}, Status: {status}")
-        
-        if ponto_inicial not in graph:
-            print(f"Ignorando segmento inválido: Ponto Inicial {ponto_inicial} não encontrado no grafo")
-            continue
-
+    for ponto_inicial, ponto_final, distancia, direcao, status in segmentos:
         graph[ponto_inicial][ponto_final] = (distancia, direcao, status)
-
-        if ponto_final not in graph:
-            print(f"Ignorando segmento inválido: Ponto Final {ponto_final} não encontrado no grafo")
-            continue
-
         graph[ponto_final][ponto_inicial] = (distancia, direcao, status)
-
-    print("Pontos no grafo:")
-    print(list(graph.keys()))
 
     conn.close()
 
     return graph
 
+def dijkstra(graph, start, end):
+    # Inicialização do algoritmo
+    heap = [(0, start, [])]
+    visited = set()
+
+    while heap:
+        (cost, current, path) = heapq.heappop(heap)
+
+        if current in visited:
+            continue
+
+        visited.add(current)
+        path = path + [current]
+
+        if current == end:
+            return {"cost": cost, "path": path}
+
+        for neighbor, (distance, direction, status) in graph[current].items():
+            if neighbor not in visited:
+                heapq.heappush(heap, (cost + distance, neighbor, path))
+
+    return {"cost": float('inf'), "path": None}
+
+# Sua rota principal usando Dijkstra
+def calcular_rotas_dijkstra(origem_id, destino_id):
+    graph = build_graph()
+
+    if origem_id not in graph or destino_id not in graph:
+        return {"success": False, "message": "IDs de origem ou destino não encontrados no grafo"}
+
+    result = dijkstra(graph, origem_id, destino_id)
+
+    if result["path"] is None:
+        return {"success": False, "message": f"Não foi possível encontrar uma rota de {origem_id} para {destino_id}"}
+
+    path_info = []
+    for i in range(len(result["path"]) - 1):
+        ponto_inicial = result["path"][i]
+        ponto_final = result["path"][i + 1]
+        distancia, direcao, status = graph[ponto_inicial][ponto_final]
+        segmento_info = {
+            "ponto_inicial": ponto_inicial,
+            "ponto_final": ponto_final,
+            "distancia": distancia,
+            "direcao": direcao,
+            "status": status
+        }
+        path_info.append(segmento_info)
+
+    return {
+        "success": True,
+        "message": "Rota calculada com sucesso usando Dijkstra",
+        "rota": path_info
+    }
 
 @app.route('/rotas', methods=['POST'])
 def calcular_rotas():
@@ -982,56 +1027,23 @@ def calcular_rotas():
 
         print(f"Calculando rota de {origem_id} para {destino_id}")
 
-        graph = build_graph()
+        result = calcular_rotas_dijkstra(origem_id, destino_id)
 
-        if origem_id not in graph or destino_id not in graph:
-            print(f"IDs de origem {origem_id} ou destino {destino_id} não encontrados no grafo.")
-            return jsonify({"success": False, "message": "IDs de origem ou destino não encontrados no grafo"}), 400
+        if not result["success"]:
+            print(result["message"])
+            return jsonify(result), 400
 
-        # Tentar construir rota a partir dos segmentos disponíveis
-        route_segments = []
-        current_point = origem_id
+        rota_info = result["rota"]
 
-        while current_point != destino_id:
-            # Encontrar próximo segmento
-            next_segment = find_next_segment(graph, current_point, destino_id)
+        print("Rota principal:")
+        print(rota_info)
 
-            if not next_segment:
-                print(f"Não foi possível encontrar um próximo segmento a partir de {current_point} para {destino_id}")
-                return jsonify({"success": False, "message": "Não foi possível encontrar uma rota"}), 400
-
-            route_segments.append(next_segment)
-            current_point = next_segment["ponto_final"]
-
-        print(f"Rota principal calculada com sucesso: {route_segments}")
-
-        result = {
-            "success": True,
-            "message": "Rota principal calculada com sucesso",
-            "rota": route_segments
-        }
         return jsonify(result), 200
 
     except Exception as e:
-        print(f"Erro ao calcular a rota: {e}")
+        print(f"Erro ao calcular a rota: {str(e)}")
         return jsonify({"success": False, "message": "Erro ao calcular a rota"}), 400
 
-def find_next_segment(graph, current_point, destination_point):
-    if current_point not in graph:
-        return None
-
-    for neighbor, (distance, direction, status) in graph[current_point].items():
-        # Verificar se o ponto final do segmento é o ponto de destino
-        if neighbor == destination_point:
-            return {
-                "ponto_inicial": current_point,
-                "ponto_final": neighbor,
-                "distancia": distance,
-                "direcao": direction,
-                "status": status
-            }
-    return None
-    
 ###
 ### Servidor Flask
 ###
