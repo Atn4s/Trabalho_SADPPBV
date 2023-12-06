@@ -978,7 +978,7 @@ def dijkstra(graph, start, end):
             return {"cost": cost, "path": path}
 
         for neighbor, (distance, direction, status) in graph[current].items():
-            if neighbor not in visited:
+            if neighbor not in visited and status != 0:  # Verifica se o status é diferente de 0
                 heapq.heappush(heap, (cost + distance, neighbor, path))
 
     return {"cost": float('inf'), "path": None}
