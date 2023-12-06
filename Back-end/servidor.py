@@ -4,7 +4,12 @@ from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity 
 from flask_cors import CORS
 from functools import wraps
+import heapq
 import Tables
+import logging
+import threading
+import time
+import os
 
 logging.basicConfig(level=logging.DEBUG) 
 coloredlogs.install(level='DEBUG', fmt='%(asctime)s - %(levelname)s - %(message)s')
@@ -18,6 +23,10 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 key = 'chavegeradaparatestesemflask'
 csrf_value = 'chavegeradaparatestesemflask'
 
+# Adicione esta variável global ou use um banco de dados para armazenar os usuários ativos
+usuarios_ativos = set()
+usuarios_lock = threading.Lock()
+
 app.config['JWT_SECRET_KEY'] = key
 app.config['JWT_BLACKLIST_ENABLED'] = True
 app.config['JWT_BLACKLIST_TOKEN_CHECKS'] = ['access', 'refresh']
@@ -26,6 +35,16 @@ revoked_tokens = set()
 jwt = JWTManager(app)
 
 Tables.initialize_database()
+
+def monitorar_usuarios_ativos():
+    while True:
+        time.sleep(5)  # Aguarda 5 segundos antes de atualizar as informações dos usuários ativos
+        with usuarios_lock:
+            usuarios_info = "\n".join([f"- {usuario[0]} ({usuario[1]})" for usuario in usuarios_ativos])
+            # Atualiza o arquivo com as informações dos usuários ativos
+            with open("usuarios_ativos.txt", "w") as usuarios_file:
+                usuarios_file.write("Usuários Ativos:\n")
+                usuarios_file.write(usuarios_info)
 
 def decode_token(encoded_token, csrf_value, allow_expired=False): # decodificação do token JWT!
     try:
@@ -116,6 +135,7 @@ def login():
             }, 
             expires_delta=ACCESS_EXPIRES
         )
+        usuarios_ativos.add((registro, current_user['tipo_usuario']))
         logging.debug(f"[ RESPOSTA: Login Autorizado para: {registro} ]")
         return jsonify({"success": True, "message": "Login bem-sucedido", "token": token, "registro": registro}), 200 # Token e pode usar meu sistema!
 
@@ -136,6 +156,7 @@ def fazer_logout():
 
         revoked_tokens.add(token) # Adicione o token à lista de tokens revogados logo não será possível reutiliza-lo!
         logging.debug(f"[ RESPOSTA: Logout de {user_info} Realizado com sucesso! ]")
+        usuarios_ativos.remove((user_info['registro'], user_info['tipo_usuario']))
         return code_response("Logout bem-sucedido!",200)
     except Exception as e:
         logging.error(f"Erro ao processar o logout: {e}")
@@ -906,13 +927,132 @@ def delete_segmento(segmento_id):
         return handle_exceptions(logging.error, e)     
 
 ###
+### ROTA DIJKTSTRA
+###
+
+def build_graph():
+    conn = sqlite3.connect('project_data.db')
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT idponto FROM ponto")
+    pontos = cursor.fetchall()
+
+    # Usar o ID do ponto como chave para o dicionário
+    graph = {ponto[0]: {} for ponto in pontos}
+
+    cursor.execute("SELECT ponto_inicial, ponto_final, distancia, direcao, status FROM segmento")
+    segmentos = cursor.fetchall()
+
+    print("Pontos no banco de dados:")
+    print([ponto[0] for ponto in pontos])
+
+    for segmento in segmentos:
+        ponto_inicial, ponto_final, distancia, direcao, status = segmento
+        print(f"Segmento: Ponto Inicial: {ponto_inicial}, Ponto Final: {ponto_final}, Distância: {distancia}, Direção: {direcao}, Status: {status}")
+        
+        if ponto_inicial not in graph:
+            print(f"Ignorando segmento inválido: Ponto Inicial {ponto_inicial} não encontrado no grafo")
+            continue
+
+        graph[ponto_inicial][ponto_final] = (distancia, direcao, status)
+
+        if ponto_final not in graph:
+            print(f"Ignorando segmento inválido: Ponto Final {ponto_final} não encontrado no grafo")
+            continue
+
+        graph[ponto_final][ponto_inicial] = (distancia, direcao, status)
+
+    print("Pontos no grafo:")
+    print(list(graph.keys()))
+
+    conn.close()
+
+    return graph
+
+
+@app.route('/rotas', methods=['POST'])
+def calcular_rotas():
+    try:
+        data = request.json
+        origem_id = data.get('origem', None)
+        destino_id = data.get('destino', None)
+
+        if origem_id is None or destino_id is None:
+            return jsonify({"success": False, "message": "IDs de origem e destino são obrigatórios"}), 400
+
+        print(f"Calculando rota de {origem_id} para {destino_id}")
+
+        graph = build_graph()
+
+        if origem_id not in graph or destino_id not in graph:
+            print(f"IDs de origem {origem_id} ou destino {destino_id} não encontrados no grafo.")
+            return jsonify({"success": False, "message": "IDs de origem ou destino não encontrados no grafo"}), 400
+
+        # Tentar construir rota a partir dos segmentos disponíveis
+        route_segments = []
+        current_point = origem_id
+
+        while current_point != destino_id:
+            # Encontrar próximo segmento
+            next_segment = find_next_segment(graph, current_point, destino_id)
+
+            if not next_segment:
+                print(f"Não foi possível encontrar um próximo segmento a partir de {current_point} para {destino_id}")
+                return jsonify({"success": False, "message": "Não foi possível encontrar uma rota"}), 400
+
+            route_segments.append(next_segment)
+            current_point = next_segment["ponto_final"]
+
+        print(f"Rota principal calculada com sucesso: {route_segments}")
+
+        result = {
+            "success": True,
+            "message": "Rota principal calculada com sucesso",
+            "rota": route_segments
+        }
+        return jsonify(result), 200
+
+    except Exception as e:
+        print(f"Erro ao calcular a rota: {e}")
+        return jsonify({"success": False, "message": "Erro ao calcular a rota"}), 400
+
+def find_next_segment(graph, current_point, destination_point):
+    if current_point not in graph:
+        return None
+
+    for neighbor, (distance, direction, status) in graph[current_point].items():
+        # Verificar se o ponto final do segmento é o ponto de destino
+        if neighbor == destination_point:
+            return {
+                "ponto_inicial": current_point,
+                "ponto_final": neighbor,
+                "distancia": distance,
+                "direcao": direction,
+                "status": status
+            }
+    return None
+    
+###
 ### Servidor Flask
 ###
 
 if __name__ == '__main__':
+    # Inicie o thread de monitoramento em segundo plano
+    monitor_thread = threading.Thread(target=monitorar_usuarios_ativos)
+    monitor_thread.daemon = True
+    monitor_thread.start()
+
     if len(sys.argv) > 1:
         port = int(sys.argv[1])
     else:
         port = 5000
 
-    app.run(debug=True, port=port, host='0.0.0.0')
+    try:
+        # Inicia o servidor Flask
+        app.run(debug=True, port=port, host='0.0.0.0')
+    finally:
+        # Remove o arquivo se não houver usuários ativos ou ao fechar o servidor
+        if not usuarios_ativos:
+            arquivo_path = "usuarios_ativos.txt"
+            if os.path.exists(arquivo_path):
+                os.remove(arquivo_path)

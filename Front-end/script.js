@@ -1108,3 +1108,37 @@ let tbody = [];
             }
         });
     }
+
+    function calcularrota() {    
+        // Obtenha valores de origem e destino usando prompt
+        const origem = prompt("Digite o ponto de origem:");
+        const destino = prompt("Digite o ponto de destino:");
+    
+        // Certifique-se de que os valores não estão vazios antes de enviar a solicitação
+        if (!origem || !destino) {
+            alert("Por favor, preencha os campos de origem e destino.");
+            return;
+        }
+    
+        // Dados a serem enviados na solicitação
+        const requestData = {
+            origem: parseInt(origem),
+            destino: parseInt(destino)
+        };
+        $.ajax({
+            url: `http://${IP}:${PORT}/rotas`,
+            type: 'POST',
+            contentType: 'application/json',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            data: JSON.stringify(requestData),
+            success: function (response) {
+                alert(JSON.stringify(response));
+            },
+            error: function (error) {
+                const errorObject = JSON.parse(error.responseText);
+                alert(JSON.stringify(errorObject));
+            }
+        });
+    }
