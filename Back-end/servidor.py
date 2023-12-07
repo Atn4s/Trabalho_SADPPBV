@@ -937,6 +937,17 @@ def delete_segmento(segmento_id):
 ### ROTA DIJKTSTRA
 ###
 
+def get_nome_by_id(ponto_id):
+    conn = sqlite3.connect('project_data.db')
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT nome FROM ponto WHERE idponto = ?", (ponto_id,))
+    result = cursor.fetchone()
+
+    conn.close()
+
+    return result[0] if result else None
+
 def build_graph():
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
@@ -946,15 +957,17 @@ def build_graph():
 
     graph = defaultdict(dict)
 
-    cursor.execute("SELECT ponto_inicial, ponto_final, distancia, direcao, status FROM segmento")
-    segmentos = cursor.fetchall()
-
     for ponto_id, ponto_nome in pontos:
         graph[ponto_nome] = {}
 
+    cursor.execute("SELECT ponto_inicial, ponto_final, distancia, direcao, status FROM segmento")
+    segmentos = cursor.fetchall()
+
     for ponto_inicial, ponto_final, distancia, direcao, status in segmentos:
-        graph[ponto_inicial][ponto_final] = (distancia, direcao, status)
-        graph[ponto_final][ponto_inicial] = (distancia, direcao, status)
+        ponto_inicial_nome = get_nome_by_id(ponto_inicial)  # Função auxiliar para obter o nome pelo ID
+        ponto_final_nome = get_nome_by_id(ponto_final)
+        graph[ponto_inicial_nome][ponto_final_nome] = (distancia, direcao, status)
+        graph[ponto_final_nome][ponto_inicial_nome] = (distancia, direcao, status)
 
     conn.close()
 
@@ -984,16 +997,16 @@ def dijkstra(graph, start, end):
     return {"cost": float('inf'), "path": None}
 
 # Sua rota principal usando Dijkstra
-def calcular_rotas_dijkstra(origem_id, destino_id):
+def calcular_rotas_dijkstra(origem_nome, destino_nome):
     graph = build_graph()
 
-    if origem_id not in graph or destino_id not in graph:
-        return {"success": False, "message": "IDs de origem ou destino não encontrados no grafo"}
+    if origem_nome not in graph or destino_nome not in graph:
+        return {"success": False, "message": "Nomes de origem ou destino não encontrados no grafo"}
 
-    result = dijkstra(graph, origem_id, destino_id)
+    result = dijkstra(graph, origem_nome, destino_nome)
 
     if result["path"] is None:
-        return {"success": False, "message": f"Não foi possível encontrar uma rota de {origem_id} para {destino_id}"}
+        return {"success": False, "message": f"Não foi possível encontrar uma rota de {origem_nome} para {destino_nome}"}
 
     path_info = []
     for i in range(len(result["path"]) - 1):
@@ -1016,18 +1029,24 @@ def calcular_rotas_dijkstra(origem_id, destino_id):
     }
 
 @app.route('/rotas', methods=['POST'])
+@jwt_required()
+@verify_token
 def calcular_rotas():
     try:
         data = request.json
-        origem_id = data.get('origem', None)
-        destino_id = data.get('destino', None)
+        print(f"Data recebidos: {data}")
 
-        if origem_id is None or destino_id is None:
-            return jsonify({"success": False, "message": "IDs de origem e destino são obrigatórios"}), 400
+        origem_nome = data.get('origem', None)
+        destino_nome = data.get('destino', None)
 
-        print(f"Calculando rota de {origem_id} para {destino_id}")
+        print(f"Origem: {origem_nome}, Destino: {destino_nome}")
 
-        result = calcular_rotas_dijkstra(origem_id, destino_id)
+        if origem_nome is None or destino_nome is None:
+            return jsonify({"success": False, "message": "Nomes de origem e destino são obrigatórios"}), 400
+
+        print(f"Calculando rota de {origem_nome} para {destino_nome}")
+
+        result = calcular_rotas_dijkstra(origem_nome, destino_nome)
 
         if not result["success"]:
             print(result["message"])

@@ -27,19 +27,6 @@ def initialize_database():
                           FOREIGN KEY(ponto_inicial) REFERENCES ponto(idponto),
                           FOREIGN KEY(ponto_final) REFERENCES ponto(idponto))''')      
 
-        cursor.execute('''CREATE TABLE IF NOT EXISTS rota 
-                          (idrota INTEGER PRIMARY KEY AUTOINCREMENT, 
-                          nome_rota VARCHAR(100),
-                          inicio VARCHAR(50),
-                          fim VARCHAR(50))''')
-
-        cursor.execute('''CREATE TABLE IF NOT EXISTS rotasegmento 
-                          (id_rota INTEGER, 
-                          id_segmento INTEGER, 
-                          FOREIGN KEY(id_rota) REFERENCES rota(idrota), 
-                          FOREIGN KEY(id_segmento) REFERENCES segmento(idsegmento), 
-                          PRIMARY KEY(id_rota,id_segmento))''')
-
         conn.commit()
         conn.close()
 

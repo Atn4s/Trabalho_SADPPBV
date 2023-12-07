@@ -1114,17 +1114,18 @@ let tbody = [];
         const origem = prompt("Digite o ponto de origem:");
         const destino = prompt("Digite o ponto de destino:");
     
-        // Certifique-se de que os valores não estão vazios antes de enviar a solicitação
+        // Certifique-se de que os valores não estão vazios ou são null antes de enviar a solicitação
         if (!origem || !destino) {
             alert("Por favor, preencha os campos de origem e destino.");
             return;
         }
-    
+        
         // Dados a serem enviados na solicitação
         const requestData = {
-            origem: parseInt(origem),
-            destino: parseInt(destino)
+            origem: origem,
+            destino: destino
         };
+                
         $.ajax({
             url: `http://${IP}:${PORT}/rotas`,
             type: 'POST',
@@ -1142,3 +1143,4 @@ let tbody = [];
             }
         });
     }
+    
