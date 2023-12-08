@@ -1135,12 +1135,53 @@ let tbody = [];
             },
             data: JSON.stringify(requestData),
             success: function (response) {
-                alert(JSON.stringify(response));
+                console.log(response);
+                clearTabela3();
+            
+                const tableId = 'tableRotas';
+                const existingTable = document.getElementById(tableId);
+            
+                if (existingTable) {
+                    // Se a tabela já existe, remova-a para esconder
+                    existingTable.parentNode.removeChild(existingTable);
+                    toggleTable(tableId, false);
+                }
+            
+                if (response.success && response.rota) {
+                    const rotas = response.rota;
+            
+                    let table = document.createElement('table');
+                    table.id = tableId;
+                    document.body.appendChild(table);
+            
+                    const thead = table.createTHead();
+                    const row = thead.insertRow();
+            
+                    const headers = ["#", "Ponto inicial do segmento", "Ponto final do segmento", "Distância (m)", "Direção"];
+            
+                    for (const headerText of headers) {
+                        const th = document.createElement('th');
+                        th.innerHTML = headerText;
+                        row.appendChild(th);
+                    }
+            
+                    for (let i = 0; i < rotas.length; i++) {
+                        const rota = rotas[i];
+                        const newRow = table.insertRow();
+                        newRow.insertCell().innerHTML = i + 1; // Adiciona o número da linha
+                        newRow.insertCell().innerHTML = rota.ponto_inicial;
+                        newRow.insertCell().innerHTML = rota.ponto_final;
+                        newRow.insertCell().innerHTML = rota.distancia;
+                        newRow.insertCell().innerHTML = rota.direcao;
+                        newRow.insertCell().innerHTML = (i === rotas.length - 1) ? "DESTINO" : ''; // Adiciona o destino à última linha
+                    }
+            
+                    table.appendChild(thead);
+                    toggleTable(tableId, true); // Mostra a tabela de rotas
+                } else {
+                    alert('Erro ao obter rota');
+                }
             },
-            error: function (error) {
-                const errorObject = JSON.parse(error.responseText);
-                alert(JSON.stringify(errorObject));
-            }
         });
     }
     
