@@ -23,7 +23,7 @@ def initialize_database():
                           ponto_inicial INTEGER,
                           ponto_final INTEGER,
                           status BOOLEAN,
-                          direcao VARCHAR(250),
+                          direcao VARCHAR(300),
                           FOREIGN KEY(ponto_inicial) REFERENCES ponto(idponto),
                           FOREIGN KEY(ponto_final) REFERENCES ponto(idponto))''')      
 
