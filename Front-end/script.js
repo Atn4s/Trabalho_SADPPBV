@@ -74,6 +74,13 @@ let tbody = [];
         }
     }
 
+    function clearTabela4() {
+        const table = document.getElementById('tableRotas');
+        if (table) {
+            table.innerHTML = '';
+        }
+    }
+
     if (IP && PORT) {
         $('#options').css('display', 'block');
         $('#loginForm').css('display', 'none');
@@ -131,6 +138,7 @@ let tbody = [];
                 clearTabela();
                 clearTabela2();
                 clearTabela3();
+                clearTabela4();
                 localStorage.removeItem('token'); // Remova o token do localStorage ao fazer logout
                 localStorage.removeItem('IP'); // Remova o IP do localStorage ao fazer logout
                 localStorage.removeItem('PORT'); // Remova o PORT do localStorage ao fazer logout
@@ -1109,7 +1117,16 @@ let tbody = [];
         });
     }
 
-    function calcularrota() {    
+    function calcularrota() {
+        const tableId = 'tableRotas';
+        const existingTable = document.getElementById(tableId);
+    
+        // Verifica se a tabela já existe e remove se existir
+        if (existingTable) {
+            existingTable.remove();
+            return;
+        }
+    
         // Obtenha valores de origem e destino usando prompt
         const origem = prompt("Digite o ponto de origem:");
         const destino = prompt("Digite o ponto de destino:");
@@ -1119,13 +1136,13 @@ let tbody = [];
             alert("Por favor, preencha os campos de origem e destino.");
             return;
         }
-        
+    
         // Dados a serem enviados na solicitação
         const requestData = {
             origem: origem,
             destino: destino
         };
-                
+    
         $.ajax({
             url: `http://${IP}:${PORT}/rotas`,
             type: 'POST',
@@ -1136,35 +1153,32 @@ let tbody = [];
             data: JSON.stringify(requestData),
             success: function (response) {
                 console.log(response);
-                clearTabela3();
-            
-                const tableId = 'tableRotas';
-                const existingTable = document.getElementById(tableId);
-            
+                clearTabela4();
+    
+                // Se a tabela já existe, remova-a para esconder
                 if (existingTable) {
-                    // Se a tabela já existe, remova-a para esconder
-                    existingTable.parentNode.removeChild(existingTable);
-                    toggleTable(tableId, false);
+                    existingTable.remove();
+                    return;
                 }
-            
+    
                 if (response.success && response.rota) {
                     const rotas = response.rota;
-            
+    
                     let table = document.createElement('table');
                     table.id = tableId;
                     document.body.appendChild(table);
-            
+    
                     const thead = table.createTHead();
                     const row = thead.insertRow();
-            
+    
                     const headers = ["#", "Ponto inicial do segmento", "Ponto final do segmento", "Distância (m)", "Direção"];
-            
+    
                     for (const headerText of headers) {
                         const th = document.createElement('th');
                         th.innerHTML = headerText;
                         row.appendChild(th);
                     }
-            
+    
                     for (let i = 0; i < rotas.length; i++) {
                         const rota = rotas[i];
                         const newRow = table.insertRow();
@@ -1175,13 +1189,11 @@ let tbody = [];
                         newRow.insertCell().innerHTML = rota.direcao;
                         newRow.insertCell().innerHTML = (i === rotas.length - 1) ? "DESTINO" : ''; // Adiciona o destino à última linha
                     }
-            
                     table.appendChild(thead);
-                    toggleTable(tableId, true); // Mostra a tabela de rotas
+                    toggleTable("tableRotas", true); // Mostra a tabela de rotas                    
                 } else {
                     alert('Erro ao obter rota');
                 }
             },
         });
     }
-    
