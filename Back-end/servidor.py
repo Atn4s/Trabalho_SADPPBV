@@ -1,16 +1,15 @@
-import hashlib, sqlite3, sys, secrets, logging, coloredlogs,traceback, regex as re
+import heapq, logging, threading, time, os, socket
+import subprocess
+import hashlib, sqlite3, sys, secrets, logging, traceback, regex as re
 from datetime import timedelta 
 from flask import Flask, request, jsonify
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity 
 from flask_cors import CORS
 from functools import wraps
 from collections import defaultdict
-import heapq
 import Tables
-import logging
-import threading
-import time
-import os
+import coloredlogs
+
 
 logging.basicConfig(level=logging.DEBUG) 
 coloredlogs.install(level='DEBUG', fmt='%(asctime)s - %(levelname)s - %(message)s')
@@ -24,7 +23,6 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 key = 'chavegeradaparatestesemflask'
 csrf_value = 'chavegeradaparatestesemflask'
 
-# Adicione esta variável global ou use um banco de dados para armazenar os usuários ativos
 usuarios_ativos = set()
 usuarios_lock = threading.Lock()
 
@@ -37,12 +35,22 @@ jwt = JWTManager(app)
 
 Tables.initialize_database()
 
+def obter_endereco_ip():
+    try: # Obtém o endereço IP local da primeira interface de rede disponível e  conecta-se a um servidor externo (no caso, o Cloudflare DNS) 
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('1.1.1.1', 1)) 
+        endereco_ip = s.getsockname()[0]
+    except socket.error:
+        endereco_ip = '127.0.0.1'  # Caso ocorra algum erro, use o loopback como fallback
+    finally:
+        s.close()
+    return endereco_ip
+
 def monitorar_usuarios_ativos():
     while True:
         time.sleep(5)  # Aguarda 5 segundos antes de atualizar as informações dos usuários ativos
         with usuarios_lock:
-            usuarios_info = "\n".join([f"- {usuario[0]} ({usuario[1]})" for usuario in usuarios_ativos])
-            # Atualiza o arquivo com as informações dos usuários ativos
+            usuarios_info = "\n".join([f"- {usuario[0]} ({usuario[1]}) IP: {usuario[2]}" for usuario in usuarios_ativos])
             with open("usuarios_ativos.txt", "w") as usuarios_file:
                 usuarios_file.write("Usuários Ativos:\n")
                 usuarios_file.write(usuarios_info)
@@ -109,11 +117,23 @@ def handle_exceptions(logger, e):
     logger(f"Traceback: {traceback.format_exc()}")
     return jsonify({"success": False, "message": "Erro ao processar a solicitação"}), 400
 
+# Função para verificar se o usuário já está ativo
+def is_user_already_active(registro):
+    usuarios_ativos_file = "usuarios_ativos.txt"
+    if os.path.exists(usuarios_ativos_file):
+        with open(usuarios_ativos_file, "r") as file:
+            lines = file.readlines()
+            for line in lines:
+                if str(registro) in line:
+                    return True  # Usuário já está ativo
+    return False
+
 #Rota para o usuário fazer login!
 @app.route('/login', methods=['POST'])
 def login():
     registro = request.json.get('registro', None)
     senha = request.json.get('senha', None)
+    endereco_ip = obter_endereco_ip()
     logging.debug(f"[ SOLICITAÇÃO! Pedido de login para o usuário: {registro}]")
 
     try:
@@ -127,6 +147,11 @@ def login():
             logging.debug("[ ERRO! Credenciais inválidas! verifique seu REGISTRO e SENHA!]")
             return jsonify({"success": False, "message": "Credenciais inválidas"}), 401 # Não autenticado!
 
+        if is_user_already_active(registro):
+            logging.debug("[ ERRO! Usuário já está ativo!]")
+            return jsonify({"success": False, "message": "Usuário já está ativo"}), 401
+
+
         token = create_access_token(
             identity={
                 'user_id': current_user['user_id'], 
@@ -136,7 +161,7 @@ def login():
             }, 
             expires_delta=ACCESS_EXPIRES
         )
-        usuarios_ativos.add((registro, current_user['tipo_usuario']))
+        usuarios_ativos.add((registro, current_user['tipo_usuario'],endereco_ip))
         logging.debug(f"[ RESPOSTA: Login Autorizado para: {registro} ]")
         return jsonify({"success": True, "message": "Login bem-sucedido", "token": token, "registro": registro}), 200 # Token e pode usar meu sistema!
 
@@ -151,12 +176,13 @@ def fazer_logout():
     try:
         auth_header = request.headers.get('Authorization')
         token = auth_header.split(" ")[1]
+        endereco_ip = obter_endereco_ip()
         current_user = get_jwt_identity()
         user_info = get_user_info(current_user)
         logging.debug(f"[ SOLICITAÇÃO! Pedido de logout de: {user_info} ]")
 
-        if (user_info['registro'], user_info['tipo_usuario']) in usuarios_ativos:
-            usuarios_ativos.remove((user_info['registro'], user_info['tipo_usuario']))
+        if (user_info['registro'], user_info['tipo_usuario'],endereco_ip) in usuarios_ativos:
+            usuarios_ativos.remove((user_info['registro'], user_info['tipo_usuario'],endereco_ip))
             logging.debug(f"[ RESPOSTA: Logout de {user_info} Realizado com sucesso! ]")
             revoked_tokens.add(token)
             return code_response("Logout bem-sucedido!", 200)
@@ -432,6 +458,12 @@ def deletar_usuario(registro):
             logging.debug("Registro inválido. Deve ser um número inteiro.")
             return jsonify({"success": False, "message": "Registro inválido. Deve ser um número inteiro."}), 403
         current_user = get_jwt_identity()
+        endereco_ip = obter_endereco_ip()
+
+        if registro == 25000:
+            logging.debug("DELEÇÃO NEGADA! O Usuário Master (ID 25000) não pode ser removido. Este incidente será relatado.")
+            return jsonify({"success": False, "message": "DELEÇÃO NEGADA! O Usuário Master (ID 25000) não pode ser removido. Este incidente será relatado."}), 403
+
         if current_user:
             logging.debug(f"[ SOLICITAÇÃO! Deletar o usuário com registro {registro} ]")
             if current_user['tipo_usuario'] == 1 or (current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro):  
@@ -447,13 +479,13 @@ def deletar_usuario(registro):
 
                     auth_header = request.headers.get('Authorization')
                     token = auth_header.split(" ")[1]
+                    usuarios_ativos.remove((current_user['registro'], current_user['tipo_usuario'],endereco_ip))
                     revoked_tokens.add(token)
 
                     logging.debug("[ RESPOSTA: Usuário deletado com sucesso! ]")
                     return code_response("Usuário deletado com sucesso!", 200)
 
                 elif int(current_user['tipo_usuario']) == int(1):
-                    # Usuário administrador está deletando outro usuário
                     conn = sqlite3.connect('project_data.db')
                     cursor = conn.cursor()
 
@@ -510,7 +542,6 @@ def cadastrar_ponto():
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
 
-            # Verificar se o ponto já existe no banco (insensível a maiúsculas e minúsculas)
             cursor.execute("SELECT nome FROM ponto WHERE LOWER(nome) = LOWER(?)", (nome,))
             existing_point = cursor.fetchone()
 
@@ -519,7 +550,6 @@ def cadastrar_ponto():
                 logging.debug(f"[ RESPOSTA: ERRO! Ponto já existe: {nome} ]")
                 return jsonify({"success": False, "message": "Ponto já existe"}), 403
 
-            # Inserir um novo ponto na tabela de ponto
             cursor.execute("INSERT INTO ponto (nome) VALUES (?)", (nome,))
 
             conn.commit()
@@ -547,13 +577,11 @@ def listar_pontos():
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
 
-            # Exemplo: Selecionar todos os pontos da tabela de pontos
             cursor.execute("SELECT * FROM ponto")
             pontos = cursor.fetchall()
 
             conn.close()
 
-            # Formatar os resultados conforme necessário
             pontos_formatados = [{"ponto_id": ponto[0], "nome": ponto[1]} for ponto in pontos]
 
             logging.debug(f"[ RESPOSTA: Lista de pontos recuperada com sucesso ]")
@@ -584,13 +612,11 @@ def obter_ponto(ponto_id):
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
 
-            # Exemplo: Selecionar um ponto específico da tabela de segmento
             cursor.execute("SELECT * FROM ponto WHERE idponto=?", (ponto_id,))
             ponto = cursor.fetchone()
 
             conn.close()
 
-            # Verificar se o ponto existe
             if ponto:
                 ponto_formatado = {"ponto_id": ponto[0], "nome": ponto[1]}
                 logging.debug(f"[ RESPOSTA: Detalhes do ponto {ponto_id} recuperados com sucesso ]")
@@ -628,10 +654,8 @@ def atualizar_ponto(ponto_id):
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
 
-            # Exemplo: Atualizar um ponto específico na tabela de segmento
             cursor.execute("UPDATE ponto SET nome=? WHERE idponto=?", (nome, ponto_id))
 
-             # Verificar quantas linhas foram afetadas
             if cursor.rowcount == 0:
                 conn.close()
                 logging.debug(f"[ ERRO! Ponto {ponto_id} não encontrado ]")
@@ -669,10 +693,8 @@ def excluir_ponto(ponto_id):
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
 
-            # Exemplo: Excluir um ponto específico da tabela de segmento
             cursor.execute("DELETE FROM ponto WHERE idponto=?", (ponto_id,))
 
-            # Verificar quantas linhas foram afetadas
             if cursor.rowcount == 0:
                 conn.close()
                 logging.debug(f"[ ERRO! Ponto {ponto_id} não encontrado ]")
@@ -712,7 +734,6 @@ def create_segmento():
                 logging.debug(f"[ ERRO! Distância deve ser maior que zero! ]")
                 return jsonify({"success": False, "message": "Distância deve ser maior que zero"}), 403
 
-             # Verificar se os pontos inicial e final existem
             cursor.execute("SELECT COUNT(*) FROM ponto WHERE idponto IN (?, ?)", (data['ponto_inicial'], data['ponto_final']))
             count = cursor.fetchone()[0]
 
@@ -720,13 +741,10 @@ def create_segmento():
                 logging.debug(f"[ ERRO! Pontos inicial e/ou final não existem!]")
                 return jsonify({"success": False, "message": "Pontos inicial e/ou final não existem"}), 403
 
-            # Verificar se a distância é maior que zero
-
             if data['status'] not in [0, 1]:
                 logging.debug(f"[ ERRO! Status Inválido OLHE PROTOCOLO 0 OU 1 ]")
                 return jsonify({"success": False, "message": "Tipo de status inválido. O status de deve ser 0 ou 1."}), 403
 
-            # Verificar se o segmento já existe
             cursor.execute('''SELECT COUNT(*) FROM segmento 
                               WHERE distancia = ? AND ponto_inicial = ? AND ponto_final = ?
                               AND status = ? AND direcao = ?''', (data['distancia'], data['ponto_inicial'], 
@@ -762,7 +780,6 @@ def get_segmentos():
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
 
-    # Retrieve data from the database with a JOIN to get the names of ponto_inicial and ponto_final
     cursor.execute('''SELECT s.idsegmento, s.distancia, p1.nome AS ponto_inicial, p2.nome AS ponto_final,
                             s.status, s.direcao 
                     FROM segmento s
@@ -771,7 +788,6 @@ def get_segmentos():
 
     segmentos = cursor.fetchall()
 
-    # Convert data to the desired format
     result = [{'segmento_id': s[0], 'distancia': s[1], 'ponto_inicial': s[2], 'ponto_final': s[3],
             'status': int(s[4]), 'direcao': s[5]} for s in segmentos]
 
@@ -796,11 +812,9 @@ def get_segmento(segmento_id):
             logging.debug(f"[ ERRO! Segmento inválido. Deve ser um número inteiro. ]")
             return jsonify({"success": False, "message": "Segmento inválido. Deve ser um número inteiro."}), 403
  
-        # Add your authentication logic here if needed
         conn = sqlite3.connect('project_data.db')
         cursor = conn.cursor()
 
-        # Retrieve data from the database with a JOIN to get the names of ponto_inicial and ponto_final
         cursor.execute('''SELECT s.idsegmento, s.distancia, p1.nome AS ponto_inicial, p2.nome AS ponto_final,
                                 s.status, s.direcao 
                         FROM segmento s
@@ -861,7 +875,6 @@ def update_segmento(segmento_id):
                 logging.debug(f"[ ERRO: Distância deve ser maior que zero ]")
                 return jsonify({"success": False, "message": "Distância deve ser maior que zero"}), 403
 
-             # Verificar se os pontos inicial e final existem
             cursor.execute("SELECT COUNT(*) FROM ponto WHERE idponto IN (?, ?)", (data['ponto_inicial'], data['ponto_final']))
             count = cursor.fetchone()[0]
 
@@ -875,7 +888,6 @@ def update_segmento(segmento_id):
                 logging.debug(f"[ ERRO! Status Inválido OLHE PROTOCOLO 0 OU 1 ]")
                 return jsonify({"success": False, "message": "Tipo de status inválido. O status de deve ser 0 ou 1."}), 403
 
-            # Update data in the database
             cursor.execute('''UPDATE segmento 
                             SET distancia=?, ponto_inicial=?, ponto_final=?, status=?, direcao=? 
                             WHERE idsegmento=?''', (data['distancia'], data['ponto_inicial'],
@@ -891,7 +903,7 @@ def update_segmento(segmento_id):
         return handle_exceptions(logging.error, e)     
 
 
-# Routa para deletar um segmento especifico
+# Rota para deletar um segmento especifico
 @app.route('/segmentos/<segmento_id>', methods=['DELETE'])
 @jwt_required()
 @verify_token
@@ -913,7 +925,6 @@ def delete_segmento(segmento_id):
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
 
-             # Verificar se o segmento existe antes de excluir
             cursor.execute("SELECT * FROM segmento WHERE idsegmento=?", (segmento_id,))
             segmento = cursor.fetchone()
 
@@ -921,7 +932,6 @@ def delete_segmento(segmento_id):
                 logging.debug(f"[ RESPOSTA: Segmento não encontrado ]")
                 return jsonify({'success': False, 'message': 'Segmento não encontrado'}), 404
 
-            # Delete data from the database
             cursor.execute('''DELETE FROM segmento WHERE idsegmento=?''', (segmento_id,))
             conn.commit()
 
@@ -964,7 +974,7 @@ def build_graph():
     segmentos = cursor.fetchall()
 
     for ponto_inicial, ponto_final, distancia, direcao, status in segmentos:
-        ponto_inicial_nome = get_nome_by_id(ponto_inicial)  # Função auxiliar para obter o nome pelo ID
+        ponto_inicial_nome = get_nome_by_id(ponto_inicial)  
         ponto_final_nome = get_nome_by_id(ponto_final)
         graph[ponto_inicial_nome][ponto_final_nome] = (distancia, direcao, status)
         graph[ponto_final_nome][ponto_inicial_nome] = (distancia, direcao, status)
@@ -974,7 +984,6 @@ def build_graph():
     return graph
 
 def dijkstra(graph, start, end):
-    # Inicialização do algoritmo
     heap = [(0, start, [])]
     visited = set()
 
@@ -996,7 +1005,6 @@ def dijkstra(graph, start, end):
 
     return {"cost": float('inf'), "path": None}
 
-# Sua rota principal usando Dijkstra
 def calcular_rotas_dijkstra(origem_nome, destino_nome):
     graph = build_graph()
 
@@ -1068,7 +1076,6 @@ def calcular_rotas():
 ###
 
 if __name__ == '__main__':
-    # Inicie o thread de monitoramento em segundo plano
     monitor_thread = threading.Thread(target=monitorar_usuarios_ativos)
     monitor_thread.daemon = True
     monitor_thread.start()
@@ -1079,10 +1086,8 @@ if __name__ == '__main__':
         port = 5000
 
     try:
-        # Inicia o servidor Flask
         app.run(debug=True, port=port, host='0.0.0.0')
     finally:
-        # Remove o arquivo se não houver usuários ativos ou ao fechar o servidor
         if not usuarios_ativos:
             arquivo_path = "usuarios_ativos.txt"
             if os.path.exists(arquivo_path):

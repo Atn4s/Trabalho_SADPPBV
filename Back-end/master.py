@@ -47,107 +47,101 @@ else:
        cur.execute("INSERT INTO ponto (nome) VALUES (?)", ("Lab.2",))
        cur.execute("INSERT INTO ponto (nome) VALUES (?)", ("Lab.4",))
 
-       # portaria a escada
+       # portaria a escada e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (100.0, 1, 2, 1, "Siga em Frente por 100 metros"))
 
-       # escada inicio para fim escada subindo
+       # escada inicio para fim escada e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (3.0, 2, 3, 1, "Utilize a escada, CUIDADO COM DEGRAUS"))
 
-       # escada fim para capela
+       # escada fim para capela e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (5.0, 3, 4, 1, "Siga em Frente por 5 metros"))
 
-       # capela para e2_inicio
+       # capela para e2_inicio e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (20.0, 4, 5, 1, "Vire à direita e siga em frente por 20 metros. Haverá uma escada à sua esquerda. Se estiver indo no sentido oposto, siga em frente por 20 metros."))
+              VALUES (?, ?, ?, ?, ?)''', (20.0, 4, 5, 1, "[CAPELA PARA ESCADA] Vire à direita e siga em frente por 20 metros. Haverá uma escada à sua esquerda. [ESCADA PARA CAPELA] Siga em frente por 20 metros."))
 
-       # e2_inicio para Lab.6 
+       # e2_inicio para Lab.6 e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (2.0, 5, 7, 1, "Siga em Frente por 2 metros"))
         
-       # Lab.6 para Lab.7 
+       # Lab.6 para Lab.7 e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (20.0, 7, 8, 1, "Vire à esquerda e siga em frente por 20 metros. Você estará em frente ao Lab.7. Se estiver indo no sentido oposto, siga em frente por 20 metros. Você estará em frente ao Lab.6, à sua direita há um corredor."))
+              VALUES (?, ?, ?, ?, ?)''', (20.0, 7, 8, 1, "[LAB.6 PARA LAB.7] Vire à esquerda e siga em frente por 20 metros. Você estará em frente ao Lab.7. [LAB.7 PARA LAB.6] Siga em frente por 20 metros. Você estará em frente ao Lab.6, à sua direita há um corredor."))
         
-       # Lab.7 para Lab.8 
+       # Lab.7 para Lab.8 e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (10.0, 8, 9, 1, "Siga em Frente por 10 metros"))
-       # Lab.8 para Lab.7 
-       cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (10.0, 9, 8, 1, "Siga em Frente por 10 metros")) 
 
-       # Lab.8 para e4_inicio
+       # Lab.8 para e4_inicio e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (5.0, 9, 10, 1, "Siga em frente por 5 metros e vire à esquerda. Você estará em frente a uma escada. Se estiver indo no sentido oposto, vire à direita e siga em frente por 5 metros. Você estará em frente ao Lab.8."))      
+              VALUES (?, ?, ?, ?, ?)''', (5.0, 9, 10, 1, "[LAB.8 PARA ESCADA_INICIO] Siga em frente por 5 metros e vire à esquerda. Você estará em frente a uma escada.[ESCADA PARA LAB.8] Vire à direita e siga em frente por 5 metros. Você estará em frente ao Lab.8."))      
        
-       # e4_inicio para e4_fim (subindo)
+       # e4_inicio para e4_fim e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (1.0, 10, 11, 1, "Utilize a escada, CUIDADO COM DEGRAUS"))
 
-       #e4_fim para LaCA
+       #e4_fim para LaCA e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (2.0, 11, 12, 1, "Siga em frente por 2 metros"))
-       #LaCA para e4_fim
-       cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (2.0, 12, 11, 1, "Siga em frente por 2 metros"))
 
-       #LaCA para r1_fim
+       #LaCA para r1_fim e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (40.0, 12, 14, 1, "Siga em frente por 40 metros. Haverá uma rampa à sua esquerda. Se estiver indo no sentido oposto, vire à direita e siga em frente por 40 metros. Você estará em frente ao LaCA."))      
+              VALUES (?, ?, ?, ?, ?)''', (40.0, 12, 14, 1, "[LACA PARA RAMPA] Siga em frente por 40 metros. Haverá uma rampa à sua esquerda. [RAMPA PARA LACA] Vire à direita e siga em frente por 40 metros. Você estará em frente ao LaCA."))      
 
-       #r1_inicio para r1_fim
+       #r1_inicio para r1_fim e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (1.0, 13, 14, 1, "Fique à direita e suba a rampa. Se estiver indo no sentido oposto, fique à esquerda e desça a rampa.")) 
+              VALUES (?, ?, ?, ?, ?)''', (1.0, 13, 14, 1, "[RAMPA SUBINDO] Fique à direita e suba a rampa. [RAMPA DESCENDO] Fique à esquerda e desça a rampa.")) 
 
-       #r1_inicio para Auditório
+       #r1_inicio para Auditório  e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (35.0, 13, 15, 1, "Permaneça à esquerda e ande por 35 metros. O Auditório estará à sua direita, e à sua esquerda há um corredor. Se estiver indo no sentido oposto, permaneça à direita e ande para frente por 35 metros. Haverá uma rampa à sua frente."))       
+              VALUES (?, ?, ?, ?, ?)''', (35.0, 13, 15, 1, "[RAMPA PARA AUDITÓRIO] Permaneça à esquerda e ande por 35 metros. O Auditório estará à sua direita, e à sua esquerda há um corredor. [AUDITÓRIO PARA RAMPA] permaneça à direita e ande para frente por 35 metros. Haverá uma rampa à sua frente."))       
 
-       #Auditório para Capela
+       #Auditório para Capela e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (20.0, 13, 4, 1, "Siga em Frente por 20 metros"))       
 
-       #Auditório para e3_inicio
+       #Auditório para e3_inicio e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (2.0, 15, 16, 1, "Siga em frente por 2 metros. Haverá uma escada à sua frente. Se estiver indo no sentido oposto, siga em frente por 2 metros. À sua esquerda é o Auditório, à sua direita é um corredor, e à sua frente é outro corredor."))
+              VALUES (?, ?, ?, ?, ?)''', (2.0, 15, 16, 1, "[AUDITÓRIO PARA ESCADA] Siga em frente por 2 metros. Haverá uma escada à sua frente. [ESCADA PAR AUDITÓRIO] siga em frente por 2 metros. À sua esquerda é o Auditório, à sua direita é um corredor, e à sua frente é outro corredor."))
 
-       #e3_inicio para e3_fim (subindo)
+       #e3_inicio para e3_fim (subindo) e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (10.0, 16, 17, 1, "Utilize a escada se apoiando ao corrimão! ela é em formato de U"))
 
-       #e2_inicio para e2_fim (subindo)
+       #e2_inicio para e2_fim (subindo) e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (10.0, 5, 6, 1, "Utilize a escada se apoiando ao corrimão! ela é em formato de U"))      
 
-       #e2_fim para Lab.1
+       #e2_fim para Lab.1 e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (2.0, 6, 18, 1, "Vire à esquerda e ande em frente por 2 metros. Você estará em frente ao Lab.1. Se estiver indo no sentido oposto, ande em frente por 2 metros. À sua direita, estará a escada."))       
+              VALUES (?, ?, ?, ?, ?)''', (2.0, 6, 18, 1, "[ESCADA PARA LAB.1] Vire à esquerda e ande em frente por 2 metros. Você estará em frente ao Lab.1. [LAB.1 PARA ESCADA] Ande em frente por 2 metros. À sua direita, estará a escada."))       
 
-       #Lab.1 para Lab.3 
+       #Lab.1 para Lab.3 e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (2.0, 18, 19, 1, "Siga em frente por 2 metros"))
 
-       #Lab.3 para Lab.5 
+       #Lab.3 para Lab.5 e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (10.0, 19, 20, 1, "Vire à esquerda e siga em frente por 10 metros. Você estará em frente ao Lab.5. Se estiver indo no sentido oposto, siga em frente por 10 metros. Você estará em frente ao Lab.3, à sua esquerda há um corredor."))     
+              VALUES (?, ?, ?, ?, ?)''', (10.0, 19, 20, 1, "[LAB.3 PARA LAB.5] Vire à esquerda e siga em frente por 10 metros. Você estará em frente ao Lab.5. [LAB.5 PARA LAB.3] Siga em frente por 10 metros. Você estará em frente ao Lab.3, à sua esquerda há um corredor."))     
 
-       #Lab.5 para Dainf
+       #Lab.5 para Dainf e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (15.0, 20, 21, 1, "Siga em frente por 15 metros"))
 
-       #e2_fim para Lab.2
+       #e2_fim para Lab.2 e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (3.0, 6, 22, 1, "Vire à direita e ande em frente por 3 metros. Você estará em frente ao Lab.2. Se estiver indo no sentido oposto, ande em frente por 3 metros. À sua direita, haverá uma escada."))      
+              VALUES (?, ?, ?, ?, ?)''', (3.0, 6, 22, 1, "[ESCADA PARA LAB.2] Vire à direita e ande em frente por 3 metros. Você estará em frente ao Lab.2. [LAB.2 PARA ESCADA] ande em frente por 3 metros. À sua direita, haverá uma escada."))      
 
-       #Lab.2 para Lab.4
+       #Lab.2 para Lab.4 e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
               VALUES (?, ?, ?, ?, ?)''', (5.0, 22, 23, 1, "Ande em frente por 5 metros"))
 
-       #Lab.4 para e3_fim
+       #Lab.4 para e3_fim e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (30.0, 23, 17, 1, "Ande em frente por 30 metros. À sua esquerda, haverá uma escada. Se estiver indo no sentido oposto, vire à direita e siga em frente por 30 metros. Você estará em frente ao Lab.4."))       
+              VALUES (?, ?, ?, ?, ?)''', (30.0, 23, 17, 1, "[LAB.4 PARA ESCADA] Ande em frente por 30 metros. À sua esquerda, haverá uma escada. [ESCADA PARA LAB.4] Vire à direita e siga em frente por 30 metros. Você estará em frente ao Lab.4."))       
 
        con.commit()
        con.close()
