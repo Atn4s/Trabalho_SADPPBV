@@ -1194,6 +1194,9 @@ let tbody = [];
                 } else {
                     alert('Erro ao obter rota');
                 }
-            },
+            }, error: function (error) {
+                const errorObject = JSON.parse(error.responseText);
+                alert(JSON.stringify(errorObject));
+            }
         });
     }

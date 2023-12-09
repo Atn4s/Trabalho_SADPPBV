@@ -1009,12 +1009,12 @@ def calcular_rotas_dijkstra(origem_nome, destino_nome):
     graph = build_graph()
 
     if origem_nome not in graph or destino_nome not in graph:
-        return {"success": False, "message": "Nomes de origem ou destino não encontrados no grafo"}
+        return {"success": False, "message": "Nomes de origem ou destino não encontrados no grafo"}, 404
 
     result = dijkstra(graph, origem_nome, destino_nome)
 
     if result["path"] is None:
-        return {"success": False, "message": f"Não foi possível encontrar uma rota de {origem_nome} para {destino_nome}"}
+        return {"success": False, "message": f"Não foi possível encontrar uma rota de {origem_nome} para {destino_nome}"}, 404
 
     path_info = []
     for i in range(len(result["path"]) - 1):
