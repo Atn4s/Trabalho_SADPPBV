@@ -101,7 +101,7 @@ else:
 
        #Auditório para Capela e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
-              VALUES (?, ?, ?, ?, ?)''', (20.0, 15, 4, 1, "Siga em Frente por 20 metros"))       
+              VALUES (?, ?, ?, ?, ?)''', (20.0, 15, 4, 1, "Vire a Esquerda e Siga em Frente por 20 metros"))       
 
        #Auditório para e3_inicio e vice-versa
        cur.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
