@@ -1,5 +1,4 @@
-import heapq, logging, threading, time, os, socket
-import subprocess
+import heapq, logging, threading, time, os
 import hashlib, sqlite3, sys, secrets, logging, traceback, regex as re
 from datetime import timedelta 
 from flask import Flask, request, jsonify
@@ -36,19 +35,17 @@ jwt = JWTManager(app)
 Tables.initialize_database()
 
 def obter_endereco_ip():
-    try: # Obtém o endereço IP local da primeira interface de rede disponível e  conecta-se a um servidor externo (no caso, o Cloudflare DNS) 
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.connect(('1.1.1.1', 1)) 
-        endereco_ip = s.getsockname()[0]
-    except socket.error:
-        endereco_ip = '127.0.0.1'  # Caso ocorra algum erro, use o loopback como fallback
-    finally:
-        s.close()
-    return endereco_ip
+    try:
+        endereco_ip = request.remote_addr
+        return endereco_ip
+    except Exception as e:
+        print(f"Erro ao obter endereço IP: {e}")
+
+    return '127.0.0.1'  # Caso ocorra algum erro, use o loopback como fallback
 
 def monitorar_usuarios_ativos():
     while True:
-        time.sleep(5)  # Aguarda 5 segundos antes de atualizar as informações dos usuários ativos
+        time.sleep(2)  # Aguarda 2 segundos antes de atualizar as informações dos usuários ativos
         with usuarios_lock:
             usuarios_info = "\n".join([f"- {usuario[0]} ({usuario[1]}) IP: {usuario[2]}" for usuario in usuarios_ativos])
             with open("usuarios_ativos.txt", "w") as usuarios_file:
@@ -118,13 +115,13 @@ def handle_exceptions(logger, e):
     return jsonify({"success": False, "message": "Erro ao processar a solicitação"}), 400
 
 # Função para verificar se o usuário já está ativo
-def is_user_already_active(registro):
+def is_user_already_active(registro, endereco_ip):
     usuarios_ativos_file = "usuarios_ativos.txt"
     if os.path.exists(usuarios_ativos_file):
         with open(usuarios_ativos_file, "r") as file:
             lines = file.readlines()
             for line in lines:
-                if str(registro) in line:
+                if str(registro) in line or str(registro) in line and str(endereco_ip) not in line:
                     return True  # Usuário já está ativo
     return False
 
@@ -147,7 +144,7 @@ def login():
             logging.debug("[ ERRO! Credenciais inválidas! verifique seu REGISTRO e SENHA!]")
             return jsonify({"success": False, "message": "Credenciais inválidas"}), 401 # Não autenticado!
 
-        if is_user_already_active(registro):
+        if is_user_already_active(registro,endereco_ip):
             logging.debug("[ ERRO! Usuário já está ativo!]")
             return jsonify({"success": False, "message": "Usuário já está ativo"}), 401
 
