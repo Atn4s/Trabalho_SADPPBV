@@ -234,30 +234,33 @@ let tbody = [];
 
         deleteButton.innerHTML = 'Excluir';
         deleteButton.onclick = function() {
-            $.ajax({
-                url: `http://${IP}:${PORT}/usuarios/${usuario.registro}`,
-                type: 'DELETE',
-                contentType: 'application/json',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                success: function (response) {
-                    alert(JSON.stringify(response));
-                    if (vaideletar == true) {
-                        alert("Seu usuário foi deletado do sistema! Voltando a tela inicial!");
-                        limparTela();
+            var confirmarExclusao = confirm("Tem certeza que deseja excluir este usuário?");
+            if (confirmarExclusao){
+                $.ajax({
+                    url: `http://${IP}:${PORT}/usuarios/${usuario.registro}`,
+                    type: 'DELETE',
+                    contentType: 'application/json',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    success: function (response) {
+                        alert(JSON.stringify(response));
+                        if (vaideletar == true) {
+                            alert("Seu usuário foi deletado do sistema! Voltando a tela inicial!");
+                            limparTela();
+                        }
+                    },
+                    error: function (error) {
+                        try {
+                            const errorObject = JSON.parse(error.responseText);
+                            alert(JSON.stringify(errorObject));
+                        } catch (e) {
+                            console.log("Erro ao analisar JSON da resposta de erro:", e);
+                            alert("Erro desconhecido ao processar a resposta de erro.");
+                        }                  
                     }
-                },
-                error: function (error) {
-                    try {
-                        const errorObject = JSON.parse(error.responseText);
-                        alert(JSON.stringify(errorObject));
-                    } catch (e) {
-                        console.log("Erro ao analisar JSON da resposta de erro:", e);
-                        alert("Erro desconhecido ao processar a resposta de erro.");
-                    }                  
-                }
-            });
+                });
+            }
         };
         row.appendChild(deleteButton);
     }
@@ -727,21 +730,24 @@ let tbody = [];
     
     function excluirPonto(pontoId) {
         pontoId = parseInt(pontoId);
-        $.ajax({
-            url: `http://${IP}:${PORT}/pontos/${pontoId}`,
-            type: 'DELETE',
-            contentType: 'application/json',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            success: function (response) {
-                alert(JSON.stringify(response));
-            },
-            error: function (error) {
-                const errorObject = JSON.parse(error.responseText);
-                alert(JSON.stringify(errorObject));
-            }
-        });
+        var confirmarExclusao = confirm("Tem certeza que deseja excluir este ponto?");
+        if(confirmarExclusao){
+            $.ajax({
+                url: `http://${IP}:${PORT}/pontos/${pontoId}`,
+                type: 'DELETE',
+                contentType: 'application/json',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                success: function (response) {
+                    alert(JSON.stringify(response));
+                },
+                error: function (error) {
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));
+                }
+            });
+        }
     }
 
     function criarSegmento() {
@@ -985,21 +991,18 @@ let tbody = [];
                         }
                     }
                     const cellAcao = newRow.insertCell(6);
-
                     const btnAtualizar = document.createElement('button');
                     btnAtualizar.innerHTML = 'Atualizar';
                     btnAtualizar.onclick = function () {
                         atualizarSegmento(segmentoId); // Chama a função de atualizar com o ID do segmento
                     };
                     cellAcao.appendChild(btnAtualizar);
-
                     const btnExcluir = document.createElement('button');
                     btnExcluir.innerHTML = 'Excluir';
                     btnExcluir.onclick = function () {
                         excluirSegmento(segmentoId); // Chama a função de excluir com o ID do segmento
                     };
                     cellAcao.appendChild(btnExcluir);
-
                     table.appendChild(thead);
                     toggleTable('tableSegmentos', true); // Mostra a tabela de segmentos
                 } else {
@@ -1098,47 +1101,50 @@ let tbody = [];
         });
     }
     
-    function excluirSegmento(segmentoId) {    
-        segmentoId = parseInt(segmentoId);
-        $.ajax({
-            url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
-            type: 'DELETE',
-            contentType: 'application/json',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            success: function (response) {
-                alert(JSON.stringify(response));
-            },
-            error: function (error) {
-                const errorObject = JSON.parse(error.responseText);
-                alert(JSON.stringify(errorObject));
-            }
-        });
+    function excluirSegmento(segmentoId) {
+        var confirmarExclusao = confirm("Tem certeza que deseja excluir este segmento?");
+        if (confirmarExclusao) {
+            segmentoId = parseInt(segmentoId);
+            $.ajax({
+                url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
+                type: 'DELETE',
+                contentType: 'application/json',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                success: function (response) {
+                    alert(JSON.stringify(response));
+                },
+                error: function (error) {
+                    const errorObject = JSON.parse(error.responseText);
+                    alert(JSON.stringify(errorObject));
+                }
+            });
+        }
     }
 
     function calcularrota() {
         const tableId = 'tableRotas';
-        const existingTable = document.getElementById(tableId);
-    
-        // Verifica se a tabela já existe e remove se existir
-        if (existingTable) {
+        const existingTable = document.getElementById(tableId);    
+        if (existingTable) { // Verifica se a tabela já existe e remove se existir
             existingTable.remove();
             return;
+        }            
+        const origem = prompt("Digite o ponto de origem:"); // Obtem valores de origem e destino usando prompt        
+        if (origem == null){
+            alert("Operação cancelada");
+            return;
+        }        
+        const destino = prompt("Digite o ponto de destino:"); // Obtem valores de origem e destino usando prompt    
+        if (destino == null){
+            alert("Operação cancelada");
+            return;
         }
-    
-        // Obtenha valores de origem e destino usando prompt
-        const origem = prompt("Digite o ponto de origem:");
-        const destino = prompt("Digite o ponto de destino:");
-    
-        // Certifique-se de que os valores não estão vazios ou são null antes de enviar a solicitação
-        if (!origem || !destino) {
+        if (!origem || !destino) {  // Verifica os valores se não estão vazios ou são null antes de enviar a solicitação
             alert("Por favor, preencha os campos de origem e destino.");
             return;
         }
-    
-        // Dados a serem enviados na solicitação
-        const requestData = {
+        const requestData = {  // Dados a serem enviados na solicitação
             origem: origem,
             destino: destino
         };
@@ -1154,31 +1160,23 @@ let tbody = [];
             success: function (response) {
                 console.log(response);
                 clearTabela4();
-    
-                // Se a tabela já existe, remova-a para esconder
-                if (existingTable) {
+                if (existingTable) {                 // Se a tabela já existe, remova-a para esconder
                     existingTable.remove();
                     return;
                 }
-    
                 if (response.success && response.rota) {
                     const rotas = response.rota;
-    
                     let table = document.createElement('table');
                     table.id = tableId;
                     document.body.appendChild(table);
-    
                     const thead = table.createTHead();
                     const row = thead.insertRow();
-    
                     const headers = ["#", "Ponto inicial do segmento", "Ponto final do segmento", "Distância (m)", "Direção"];
-    
                     for (const headerText of headers) {
                         const th = document.createElement('th');
                         th.innerHTML = headerText;
                         row.appendChild(th);
                     }
-    
                     for (let i = 0; i < rotas.length; i++) {
                         const rota = rotas[i];
                         const newRow = table.insertRow();

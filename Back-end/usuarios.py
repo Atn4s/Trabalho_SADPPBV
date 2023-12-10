@@ -18,5 +18,5 @@ while True:
     else:
         print("O arquivo não existe.")
 
-    # Aguarde 5 segundos
-    time.sleep(2)
+    # Aguarde 1 segundo
+    time.sleep(1)

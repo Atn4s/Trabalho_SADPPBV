@@ -34,7 +34,7 @@ else:
        cur.execute("INSERT INTO ponto (nome) VALUES (?)", ("Lab.8",))
        cur.execute("INSERT INTO ponto (nome) VALUES (?)", ("e4_inicio",))
        cur.execute("INSERT INTO ponto (nome) VALUES (?)", ("e4_fim",))
-       cur.execute("INSERT INTO ponto (nome) VALUES (?)", ("laCA",))
+       cur.execute("INSERT INTO ponto (nome) VALUES (?)", ("LaCA",))
        cur.execute("INSERT INTO ponto (nome) VALUES (?)", ("r1_inicio",))
        cur.execute("INSERT INTO ponto (nome) VALUES (?)", ("r1_fim",))
        cur.execute("INSERT INTO ponto (nome) VALUES (?)", ("Auditório",))

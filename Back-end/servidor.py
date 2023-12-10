@@ -6,24 +6,17 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 from flask_cors import CORS
 from functools import wraps
 from collections import defaultdict
-import Tables
 import coloredlogs
-
 
 logging.basicConfig(level=logging.DEBUG) 
 coloredlogs.install(level='DEBUG', fmt='%(asctime)s - %(levelname)s - %(message)s')
-app = Flask('SADPPBV') 
-CORS(app, resources={r"/*": {"origins": "*"}})  
 
-# key = secrets.token_hex(32)
-# csrf_value = secrets.token_hex(32)
-
-# chaves caso precise testar reiniciando o servidor! Basta comentar as que estão acima e descomentar as abaixo
-key = 'chavegeradaparatestesemflask'
-csrf_value = 'chavegeradaparatestesemflask'
-
+key = secrets.token_hex(32)
 usuarios_ativos = set()
 usuarios_lock = threading.Lock()
+
+app = Flask('SADPPBV') 
+CORS(app, resources={r"/*": {"origins": "*"}})  
 
 app.config['JWT_SECRET_KEY'] = key
 app.config['JWT_BLACKLIST_ENABLED'] = True
@@ -32,27 +25,34 @@ ACCESS_EXPIRES = timedelta(hours=1)
 revoked_tokens = set()
 jwt = JWTManager(app)
 
-Tables.initialize_database()
-
 def obter_endereco_ip():
     try:
         endereco_ip = request.remote_addr
         return endereco_ip
     except Exception as e:
-        print(f"Erro ao obter endereço IP: {e}")
-
-    return '127.0.0.1'  # Caso ocorra algum erro, use o loopback como fallback
+        logging.debug(f"Erro ao obter endereço IP: {e}")
+    return '127.0.0.1'  
 
 def monitorar_usuarios_ativos():
     while True:
-        time.sleep(2)  # Aguarda 2 segundos antes de atualizar as informações dos usuários ativos
+        time.sleep(1)  # Aguarda 1 segundo antes de atualizar as informações dos usuários ativos
         with usuarios_lock:
             usuarios_info = "\n".join([f"- {usuario[0]} ({usuario[1]}) IP: {usuario[2]}" for usuario in usuarios_ativos])
             with open("usuarios_ativos.txt", "w") as usuarios_file:
                 usuarios_file.write("Usuários Ativos:\n")
                 usuarios_file.write(usuarios_info)
 
-def decode_token(encoded_token, csrf_value, allow_expired=False): # decodificação do token JWT!
+def is_user_already_active(registro, endereco_ip): # Função para verificar se o usuário já está ativo
+    usuarios_ativos_file = "usuarios_ativos.txt"
+    if os.path.exists(usuarios_ativos_file):
+        with open(usuarios_ativos_file, "r") as file:
+            lines = file.readlines()
+            for line in lines:
+                if str(registro) in line or str(registro) in line and str(endereco_ip) not in line:
+                    return True  # Usuário já está ativo
+    return False                
+
+def decode_token(encoded_token, allow_expired=False): # decodificação do token JWT!
     try:
         if encoded_token is None:
             raise jwt.exceptions.InvalidTokenError("Token não encontrado")    
@@ -73,7 +73,6 @@ def authenticate_user(registro, senha_hash_blake2b): # Autenticação do usuári
     cursor = conn.cursor()
     cursor.execute("SELECT id, senha, tipo_usuario FROM usuario WHERE registro = ?", (registro,))
     users = cursor.fetchall()
-
     for user in users:
         if user and user[1] == senha_hash_blake2b:
             return {'user_id': user[0], 'tipo_usuario': user[2], 'senha': senha_hash_blake2b}
@@ -114,59 +113,35 @@ def handle_exceptions(logger, e):
     logger(f"Traceback: {traceback.format_exc()}")
     return jsonify({"success": False, "message": "Erro ao processar a solicitação"}), 400
 
-# Função para verificar se o usuário já está ativo
-def is_user_already_active(registro, endereco_ip):
-    usuarios_ativos_file = "usuarios_ativos.txt"
-    if os.path.exists(usuarios_ativos_file):
-        with open(usuarios_ativos_file, "r") as file:
-            lines = file.readlines()
-            for line in lines:
-                if str(registro) in line or str(registro) in line and str(endereco_ip) not in line:
-                    return True  # Usuário já está ativo
-    return False
-
-#Rota para o usuário fazer login!
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['POST']) #Rota para o usuário fazer login!
 def login():
     registro = request.json.get('registro', None)
     senha = request.json.get('senha', None)
     endereco_ip = obter_endereco_ip()
     logging.debug(f"[ SOLICITAÇÃO! Pedido de login para o usuário: {registro}]")
-
     try:
         if not registro or not senha:
             logging.debug("[ ERRO! Credenciais inválidas, verifique suas informações ]")            
             return jsonify({"success": False, "message": "Credenciais inválidas"}), 401 # Não autenticado!
-
         senha_hash_blake2b = hashlib.blake2b(senha.encode()).hexdigest()  # Criptografa a senha em BLAKE2B 
         current_user = authenticate_user(registro, senha_hash_blake2b) # manda registro e senha para a função de autenticação do usuário
         if not current_user:
             logging.debug("[ ERRO! Credenciais inválidas! verifique seu REGISTRO e SENHA!]")
             return jsonify({"success": False, "message": "Credenciais inválidas"}), 401 # Não autenticado!
-
         if is_user_already_active(registro,endereco_ip):
             logging.debug("[ ERRO! Usuário já está ativo!]")
             return jsonify({"success": False, "message": "Usuário já está ativo"}), 401
-
-
         token = create_access_token(
-            identity={
-                'user_id': current_user['user_id'], 
-                'tipo_usuario': current_user['tipo_usuario'], 
-                'senha': senha_hash_blake2b, 
-                'registro': registro
-            }, 
+            identity={'user_id': current_user['user_id'], 'tipo_usuario': current_user['tipo_usuario'], 'senha':senha_hash_blake2b, 'registro': registro}, 
             expires_delta=ACCESS_EXPIRES
         )
         usuarios_ativos.add((registro, current_user['tipo_usuario'],endereco_ip))
         logging.debug(f"[ RESPOSTA: Login Autorizado para: {registro} ]")
         return jsonify({"success": True, "message": "Login bem-sucedido", "token": token, "registro": registro}), 200 # Token e pode usar meu sistema!
-
     except Exception as e:
         return handle_exceptions(logging.error, e)
     
-#Rota para o usuário fazer logout!
-@app.route('/logout', methods=['POST'])
+@app.route('/logout', methods=['POST']) #Rota para o usuário fazer logout!
 @jwt_required()
 @verify_token
 def fazer_logout():
@@ -177,7 +152,6 @@ def fazer_logout():
         current_user = get_jwt_identity()
         user_info = get_user_info(current_user)
         logging.debug(f"[ SOLICITAÇÃO! Pedido de logout de: {user_info} ]")
-
         if (user_info['registro'], user_info['tipo_usuario'],endereco_ip) in usuarios_ativos:
             usuarios_ativos.remove((user_info['registro'], user_info['tipo_usuario'],endereco_ip))
             logging.debug(f"[ RESPOSTA: Logout de {user_info} Realizado com sucesso! ]")
@@ -186,15 +160,12 @@ def fazer_logout():
         else:
             logging.warning(f"Usuário {user_info} não encontrado em usuarios_ativos.")
             return code_response("Usuário não encontrado em usuarios_ativos", 404)
-
     except Exception as e:
         logging.error(f"Erro ao processar o logout: {e}")
         logging.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"success": False, "message": "Erro ao processar a solicitação de logout"}), 400
 
-
-#Rota para o usuário cadastrar!
-@app.route('/usuarios', methods=['POST'])
+@app.route('/usuarios', methods=['POST']) #Rota para o usuário cadastrar!
 @jwt_required()
 @verify_token
 def cadastrar_usuario():
@@ -202,8 +173,7 @@ def cadastrar_usuario():
     try:
         if current_user and current_user['tipo_usuario'] == 1:          
             user_info = get_user_info(current_user)
-            logging.debug(f"[ SOLICITAÇÃO! Pedido o usuário de: {user_info} deseja cadastrar ]")
-            
+            logging.debug(f"[ SOLICITAÇÃO! Pedido o usuário de: {user_info} deseja cadastrar ]")            
             new_user = request.json
             if not new_user:
                 logging.debug("[ ERRO! Dados de usuário ausentes para cadastrar ]")
@@ -215,9 +185,7 @@ def cadastrar_usuario():
                     "success": False,
                     "message": "O campo registro deve conter apenas números. Por favor, insira um valor numérico."
                 }), 403
-
             required_fields = ['nome', 'registro', 'email', 'senha', 'tipo_usuario']
-
             if any(new_user.get(field) in (None, '') for field in required_fields):
                 logging.debug("[ ERRO! Dados de usuário ausentes ou em branco para cadastrar ]")
                 return jsonify({"success": False, "message": "Dados de usuário ausentes ou em branco. Por favor, forneça os dados necessários."}), 403            
@@ -273,8 +241,7 @@ def cadastrar_usuario():
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-#Rota para o listar usuário!
-@app.route('/usuarios', methods=['GET'])
+@app.route('/usuarios', methods=['GET']) #Rota para o listar usuário!
 @jwt_required()
 @verify_token
 def get_usuario():
@@ -293,11 +260,7 @@ def get_usuario():
                     usuario.pop('senha', None)  # Remove a senha, se existir
                 conn.close()
                 logging.debug("[ RESPOSTA: Listar usuário com sucesso! ]")
-                response = {
-                    "usuarios": usuarios,
-                    "success": True,
-                    "message": "Usuários encontrados"
-                }
+                response = {"usuarios": usuarios, "success": True, "message": "Usuários encontrados"}
                 return jsonify(response), 200
             elif 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 0:  # Verifica se o tipo de usuário é 0 (comum)
                 conn = sqlite3.connect('project_data.db')
@@ -308,11 +271,7 @@ def get_usuario():
                     usuarios = [{'id': data[0], 'nome': data[1], 'registro': data[2], 'email': data[3], 'tipo_usuario': data[4]}]
                     conn.close()
                     logging.debug("[ RESPOSTA: Listar usuário com sucesso! ]")
-                    response = {
-                        "usuarios": usuarios,
-                        "success": True,
-                        "message": "Usuários encontrados"
-                    }
+                    response = {"usuarios": usuarios, "success": True, "message": "Usuários encontrados"}
                     return jsonify(response), 200
             else:  
                 logging.debug("[ ERRO! Usuário que não for [0] ou [1] não pode listar ]")
@@ -323,8 +282,7 @@ def get_usuario():
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-#Rota para o listar usuário apartir de um registro (ID)!
-@app.route('/usuarios/<registro>', methods=['GET'])
+@app.route('/usuarios/<registro>', methods=['GET']) #Rota para o listar usuário apartir de um registro (ID)!
 @jwt_required()
 @verify_token
 def get_usuario_by_registro(registro):
@@ -349,11 +307,7 @@ def get_usuario_by_registro(registro):
                     usuario = {'id': data[0], 'nome': data[1], 'registro': data[2], 'email': data[3], 'tipo_usuario': data[4]}
                     conn.close()
                     logging.debug("[ RESPOSTA: Usuário encontrado! ]")
-                    response = {
-                        "usuario": usuario,
-                        "success": True,
-                        "message": "Usuário encontrado com sucesso."
-                    }
+                    response = {"usuario": usuario, "success": True, "message": "Usuário encontrado com sucesso."}
                     return jsonify(response), 200
                 else:
                     logging.debug("[ ERRO! Usuário não encontrado ]")
@@ -367,8 +321,7 @@ def get_usuario_by_registro(registro):
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-#Rota para o atualizar o usuário apartir de um registro (ID)!
-@app.route('/usuarios/<registro>', methods=['PUT'])
+@app.route('/usuarios/<registro>', methods=['PUT']) #Rota para o atualizar o usuário apartir de um registro (ID)!
 @jwt_required()
 @verify_token
 def atualizar_usuario(registro):
@@ -385,46 +338,27 @@ def atualizar_usuario(registro):
             logging.debug(f"[ SOLICITAÇÃO! Solicitação de atualização de cadastro para o usuário com registro {registro} ]")
             if current_user['tipo_usuario'] == 1 or (current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro):  
                 dados_atualizados = request.get_json()
-
                 if 'nome' in dados_atualizados and 'email' in dados_atualizados and 'senha' in dados_atualizados:
                     if not re.match(r'^[\p{L}\s]{3,}$', str(dados_atualizados['nome'])):
                         logging.debug("[ ERRO! O campo nome deve conter apenas letras e ter no mínimo 3 caracteres ]")
-                        return jsonify({
-                            "success": False,
-                            "message": "O campo nome deve conter apenas letras e ter no mínimo 3 caracteres."
-                        }), 403
-
+                        return jsonify({"success": False, "message": "O campo nome deve conter apenas letras e ter no mínimo 3 caracteres."}), 403
                     elif not re.match(r'^[^@]+@[^@]+\.[^@]+$', str(dados_atualizados['email'])):
                         logging.debug("[ ERRO! O campo email deve conter pelo menos um '@' e um '.' ]")
-                        return jsonify({
-                            "success": False,
-                            "message": "O campo email deve conter pelo menos um '@' e um '.'."
-                        }), 403
-
+                        return jsonify({"success": False, "message": "O campo email deve conter pelo menos um '@' e um '.'."}), 403
                     elif dados_atualizados['senha'] == "d41d8cd98f00b204e9800998ecf8427e": 
                         logging.debug("[ ERRO! O campo senha não pode ser branco ou nulo! ]")
-                        return jsonify({
-                            "success": False,
-                            "message": "O campo senha não pode ser branco ou nulo!"
-                        }), 403
-
+                        return jsonify({"success": False, "message": "O campo senha não pode ser branco ou nulo!"}), 403
                     senha_hash_blake2b = hashlib.blake2b(dados_atualizados['senha'].encode()).hexdigest()  
-
                     conn = sqlite3.connect('project_data.db')
                     cursor = conn.cursor()
                     cursor.execute("UPDATE usuario SET nome=?, email=?, senha=? WHERE registro=?",
                                    (dados_atualizados['nome'], dados_atualizados['email'], senha_hash_blake2b, registro))
                     rows_affected = cursor.rowcount  
-
                     if rows_affected > 0:
                         conn.commit()
                         conn.close()
-
                         logging.debug("[ RESPOSTA: Usuário atualizado! ]")
-                        response = {
-                            "success": True,
-                            "message": "Usuário atualizado com sucesso."
-                        }
+                        response = {"success": True, "message": "Usuário atualizado com sucesso."}
                         return jsonify(response), 200                    
                     else:
                         logging.debug("[ ERRO! Usuário não encontrado ]")
@@ -441,8 +375,7 @@ def atualizar_usuario(registro):
     except Exception as e:
         return handle_exceptions(logging.error, e)
     
-#Rota para deletar o usuário apartir de um registro (ID)!
-@app.route('/usuarios/<registro>', methods=['DELETE'])
+@app.route('/usuarios/<registro>', methods=['DELETE']) #Rota para deletar o usuário apartir de um registro (ID)!
 @jwt_required()
 @verify_token
 def deletar_usuario(registro):
@@ -456,48 +389,34 @@ def deletar_usuario(registro):
             return jsonify({"success": False, "message": "Registro inválido. Deve ser um número inteiro."}), 403
         current_user = get_jwt_identity()
         endereco_ip = obter_endereco_ip()
-
         if registro == 25000:
             logging.debug("DELEÇÃO NEGADA! O Usuário Master (ID 25000) não pode ser removido. Este incidente será relatado.")
             return jsonify({"success": False, "message": "DELEÇÃO NEGADA! O Usuário Master (ID 25000) não pode ser removido. Este incidente será relatado."}), 403
-
         if current_user:
             logging.debug(f"[ SOLICITAÇÃO! Deletar o usuário com registro {registro} ]")
             if current_user['tipo_usuario'] == 1 or (current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro):  
-                if current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro or current_user['tipo_usuario'] == 1 and int(current_user['registro']) == registro:
-                    # Usuário está tentando deletar a si mesmo
+                if current_user['tipo_usuario'] == 0 and int(current_user['registro']) == registro or current_user['tipo_usuario'] == 1 and int(current_user['registro']) == registro: # Usuário está tentando deletar a si mesmo                    
                     conn = sqlite3.connect('project_data.db')
                     cursor = conn.cursor()
-
                     cursor.execute("DELETE FROM usuario WHERE registro=?", (registro,))
-
                     conn.commit()
                     conn.close()
-
                     auth_header = request.headers.get('Authorization')
                     token = auth_header.split(" ")[1]
                     usuarios_ativos.remove((current_user['registro'], current_user['tipo_usuario'],endereco_ip))
                     revoked_tokens.add(token)
-
                     logging.debug("[ RESPOSTA: Usuário deletado com sucesso! ]")
                     return code_response("Usuário deletado com sucesso!", 200)
-
                 elif int(current_user['tipo_usuario']) == int(1):
                     conn = sqlite3.connect('project_data.db')
                     cursor = conn.cursor()
-
                     cursor.execute("DELETE FROM usuario WHERE registro=?", (registro,))
-
                     rows_affected = cursor.rowcount  
                     if rows_affected > 0:
                         conn.commit()
                         conn.close()
-
                         logging.debug("[ RESPOSTA: Usuário deletado! ]")
-                        response = {
-                            "success": True,
-                            "message": "Usuário deletado com sucesso"
-                        }
+                        response = {"success": True, "message": "Usuário deletado com sucesso"}
                         return jsonify(response), 200            
                     else:
                         logging.debug("[ ERRO! Usuário não encontrado ]")
@@ -519,8 +438,7 @@ def deletar_usuario(registro):
 ### ROTAS E OUTRAS CONFIGURAÇÕES!
 ### 
 
-# Rota para cadastrar pontos
-@app.route('/pontos', methods=['POST'])
+@app.route('/pontos', methods=['POST']) # Rota para cadastrar pontos
 @jwt_required()
 @verify_token
 def cadastrar_ponto():
@@ -528,30 +446,22 @@ def cadastrar_ponto():
         current_user = get_jwt_identity()        
         user_info = get_user_info(current_user)
         logging.debug(f"[ SOLICITAÇÃO! Solicitação de cadastro de ponto, solicitado pelo usuário {user_info} ]")
-
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1: 
             nome = request.json.get('nome', None)
-
             if not nome:
                 logging.debug(f"[ ERRO! Nome do ponto não fornecido ]")
                 return jsonify({"success": False, "message": "Nome do ponto não fornecido"}), 403
-
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
-
             cursor.execute("SELECT nome FROM ponto WHERE LOWER(nome) = LOWER(?)", (nome,))
             existing_point = cursor.fetchone()
-
             if existing_point:
                 conn.close()
                 logging.debug(f"[ RESPOSTA: ERRO! Ponto já existe: {nome} ]")
                 return jsonify({"success": False, "message": "Ponto já existe"}), 403
-
             cursor.execute("INSERT INTO ponto (nome) VALUES (?)", (nome,))
-
             conn.commit()
             conn.close()
-
             logging.debug(f"[ RESPOSTA: Ponto cadastrado com sucesso: {nome} ]")
             return jsonify({"success": True, "message": "Ponto criado com sucesso"}), 200
         else:
@@ -560,8 +470,7 @@ def cadastrar_ponto():
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-# Rota para listar todos os pontos
-@app.route('/pontos', methods=['GET'])
+@app.route('/pontos', methods=['GET']) # Rota para listar todos os pontos
 @jwt_required()
 @verify_token
 def listar_pontos():
@@ -570,25 +479,18 @@ def listar_pontos():
         user_info = get_user_info(current_user)
         logging.debug(f"[ SOLICITAÇÃO! Solicitação de listagem de pontos, solicitado pelo usuário {user_info} ]")
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1 or 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 0 : 
-
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
-
             cursor.execute("SELECT * FROM ponto")
             pontos = cursor.fetchall()
-
             conn.close()
-
             pontos_formatados = [{"ponto_id": ponto[0], "nome": ponto[1]} for ponto in pontos]
-
             logging.debug(f"[ RESPOSTA: Lista de pontos recuperada com sucesso ]")
             return jsonify({"success": True, "message": "Lista de pontos recuperada com sucesso", "pontos": pontos_formatados}), 200
-
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-# Rota para obter detalhes de um ponto específico
-@app.route('/pontos/<ponto_id>', methods=['GET'])
+@app.route('/pontos/<ponto_id>', methods=['GET']) # Rota para obter detalhes de um ponto específico
 @jwt_required()
 @verify_token
 def obter_ponto(ponto_id):
@@ -604,16 +506,12 @@ def obter_ponto(ponto_id):
             logging.debug(f"[ ERRO! Ponto inválido. Deve ser um número inteiro! ]")
             return jsonify({"success": False, "message": "Ponto inválido. Deve ser um número inteiro."}), 403
         logging.debug(f"[ SOLICITAÇÃO! Solicitação de listar o ponto {ponto_id}, solicitado pelo usuário com {user_info} ]")
-
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1 or 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 0 : 
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
-
             cursor.execute("SELECT * FROM ponto WHERE idponto=?", (ponto_id,))
             ponto = cursor.fetchone()
-
             conn.close()
-
             if ponto:
                 ponto_formatado = {"ponto_id": ponto[0], "nome": ponto[1]}
                 logging.debug(f"[ RESPOSTA: Detalhes do ponto {ponto_id} recuperados com sucesso ]")
@@ -621,12 +519,10 @@ def obter_ponto(ponto_id):
             else:
                 logging.debug(f"[ ERRO! Ponto {ponto_id} não encontrado ]")
                 return jsonify({"success": False, "message": f"Ponto {ponto_id} não encontrado"}), 404
-
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-# Rota para atualizar um ponto específico
-@app.route('/pontos/<ponto_id>', methods=['PUT'])
+@app.route('/pontos/<ponto_id>', methods=['PUT']) # Rota para atualizar um ponto específico
 @jwt_required()
 @verify_token
 def atualizar_ponto(ponto_id):
@@ -643,35 +539,27 @@ def atualizar_ponto(ponto_id):
             return jsonify({"success": False, "message": "Ponto inválido. Deve ser um número inteiro."}), 403
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1: 
             nome = request.json.get('nome', None)
-
             if not nome:
                 logging.debug("[ ERRO! Nome do ponto não fornecido ]")
                 return jsonify({"success": False, "message": "Nome do ponto não fornecido"}), 403
-
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
-
             cursor.execute("UPDATE ponto SET nome=? WHERE idponto=?", (nome, ponto_id))
-
             if cursor.rowcount == 0:
                 conn.close()
                 logging.debug(f"[ ERRO! Ponto {ponto_id} não encontrado ]")
                 return jsonify({"success": False, "message": f"Ponto {ponto_id} não encontrado"}), 404
-
             conn.commit()
             conn.close()
-
             logging.debug(f"[ RESPOSTA: Ponto {ponto_id} atualizado com sucesso ]")
             return jsonify({"success": True, "message": f"Ponto {ponto_id} atualizado com sucesso"}), 200
         else:
             logging.debug(f"[ ERRO! Usuário comum não pode atualizar ponto! ]")
             return jsonify({"success": False, "message": "Usuário comum não pode atualizar ponto!"}), 403
-
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-# Rota para excluir um ponto específico
-@app.route('/pontos/<ponto_id>', methods=['DELETE'])
+@app.route('/pontos/<ponto_id>', methods=['DELETE']) # Rota para excluir um ponto específico
 @jwt_required()
 @verify_token
 def excluir_ponto(ponto_id):
@@ -689,29 +577,22 @@ def excluir_ponto(ponto_id):
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1: 
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
-
             cursor.execute("DELETE FROM ponto WHERE idponto=?", (ponto_id,))
-
             if cursor.rowcount == 0:
                 conn.close()
                 logging.debug(f"[ ERRO! Ponto {ponto_id} não encontrado ]")
                 return jsonify({"success": False, "message": f"Ponto {ponto_id} não encontrado"}), 404
-
             conn.commit()
             conn.close()
-
             logging.debug(f"[ RESPOSTA: Ponto {ponto_id} removido com sucesso ]")
             return jsonify({"success": True, "message": f"Ponto {ponto_id} removido com sucesso"}), 200
-
         else:
             logging.debug(f"[ ERRO! Usuário comum não pode deletar ponto!]")
             return jsonify({"success": False, "message": "Usuário comum não pode deletar ponto!"}), 403
-
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-# Rota para criar um novo segmento
-@app.route('/segmentos', methods=['POST'])
+@app.route('/segmentos', methods=['POST']) # Rota para criar um novo segmento
 @jwt_required()
 @verify_token
 def create_segmento():
@@ -721,42 +602,32 @@ def create_segmento():
         logging.debug(f"[ SOLICITAÇÃO! Solicitação de cadastrar segmento, solicitado pelo usuário {user_info} ]")
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1: 
             data = request.json
-
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
-
             data['distancia'] = float(data['distancia'])
-
             if data['distancia'] <= 0 :
                 logging.debug(f"[ ERRO! Distância deve ser maior que zero! ]")
                 return jsonify({"success": False, "message": "Distância deve ser maior que zero"}), 403
-
             cursor.execute("SELECT COUNT(*) FROM ponto WHERE idponto IN (?, ?)", (data['ponto_inicial'], data['ponto_final']))
             count = cursor.fetchone()[0]
-
             if count != 2:
                 logging.debug(f"[ ERRO! Pontos inicial e/ou final não existem!]")
                 return jsonify({"success": False, "message": "Pontos inicial e/ou final não existem"}), 403
-
             if data['status'] not in [0, 1]:
                 logging.debug(f"[ ERRO! Status Inválido OLHE PROTOCOLO 0 OU 1 ]")
                 return jsonify({"success": False, "message": "Tipo de status inválido. O status de deve ser 0 ou 1."}), 403
-
             cursor.execute('''SELECT COUNT(*) FROM segmento 
                               WHERE distancia = ? AND ponto_inicial = ? AND ponto_final = ?
                               AND status = ? AND direcao = ?''', (data['distancia'], data['ponto_inicial'], 
                                                                   data['ponto_final'], data['status'], data['direcao']))
             count_segmento = cursor.fetchone()[0]
-
             if count_segmento > 0:
                 logging.debug(f"[ RESPOSTA: Esse segmento já existe! ]")
                 return jsonify({"success": False, "message": "Segmento já existe"}), 403
-
             cursor.execute('''INSERT INTO segmento (distancia, ponto_inicial, ponto_final, status, direcao) 
                             VALUES (?, ?, ?, ?, ?)''', (data['distancia'], data['ponto_inicial'], 
                                                         data['ponto_final'], data['status'], data['direcao']))
             conn.commit()
-
             logging.debug(f"[ RESPOSTA: Segmento criado com sucesso!]")
             return jsonify({'success': True, 'message': 'Segmento criado com sucesso'}), 200
         else:
@@ -765,9 +636,7 @@ def create_segmento():
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-
-# Rota para listar todos segmentos
-@app.route('/segmentos', methods=['GET'])
+@app.route('/segmentos', methods=['GET']) # Rota para listar todos segmentos
 @jwt_required()
 @verify_token
 def get_segmentos():    
@@ -776,24 +645,18 @@ def get_segmentos():
     logging.debug(f"[ SOLICITAÇÃO! Solicitação de listagem de segmentos, solicitado pelo usuário {user_info} ]")
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
-
     cursor.execute('''SELECT s.idsegmento, s.distancia, p1.nome AS ponto_inicial, p2.nome AS ponto_final,
                             s.status, s.direcao 
                     FROM segmento s
                     INNER JOIN ponto p1 ON s.ponto_inicial = p1.idponto
                     INNER JOIN ponto p2 ON s.ponto_final = p2.idponto''')
-
     segmentos = cursor.fetchall()
-
     result = [{'segmento_id': s[0], 'distancia': s[1], 'ponto_inicial': s[2], 'ponto_final': s[3],
             'status': int(s[4]), 'direcao': s[5]} for s in segmentos]
-
     logging.debug(f"[ RESPOSTA: Lista de todos os segmentos! ]")
     return jsonify({'segmentos': result, 'success': True, 'message': 'Lista de todos os segmentos'}), 200
 
-
-# Rota para listar um segmento especifico 
-@app.route('/segmentos/<segmento_id>', methods=['GET'])
+@app.route('/segmentos/<segmento_id>', methods=['GET']) # Rota para listar um segmento especifico 
 @jwt_required()
 @verify_token
 def get_segmento(segmento_id):
@@ -808,19 +671,15 @@ def get_segmento(segmento_id):
         else:
             logging.debug(f"[ ERRO! Segmento inválido. Deve ser um número inteiro. ]")
             return jsonify({"success": False, "message": "Segmento inválido. Deve ser um número inteiro."}), 403
- 
         conn = sqlite3.connect('project_data.db')
         cursor = conn.cursor()
-
         cursor.execute('''SELECT s.idsegmento, s.distancia, p1.nome AS ponto_inicial, p2.nome AS ponto_final,
                                 s.status, s.direcao 
                         FROM segmento s
                         INNER JOIN ponto p1 ON s.ponto_inicial = p1.idponto
                         INNER JOIN ponto p2 ON s.ponto_final = p2.idponto
                         WHERE s.idsegmento = ?''', (segmento_id,))
-
         segmento = cursor.fetchone()
-
         if segmento:
             result = {
                 'segmento': {
@@ -833,8 +692,7 @@ def get_segmento(segmento_id):
                 },
                 'success': True,
                 'message': 'Segmento encontrado'
-            }
-            
+            }        
             logging.debug(f"[ RESPOSTA: Segmento encontrado! ]")
             return jsonify(result), 200
         else:
@@ -843,8 +701,7 @@ def get_segmento(segmento_id):
     except Exception as e:
         return handle_exceptions(logging.error, e)
     
-# Rota para atualizar um segmento especifico
-@app.route('/segmentos/<segmento_id>', methods=['PUT'])
+@app.route('/segmentos/<segmento_id>', methods=['PUT']) # Rota para atualizar um segmento especifico
 @jwt_required()
 @verify_token
 def update_segmento(segmento_id):
@@ -858,39 +715,29 @@ def update_segmento(segmento_id):
             segmento_id = int(segmento_id)
         else:
             logging.debug(f"[ ERRO! Ponto inválido. Deve ser um número inteiro! ]")
-            return jsonify({"success": False, "message": "Ponto inválido. Deve ser um número inteiro."}), 403
-        
+            return jsonify({"success": False, "message": "Ponto inválido. Deve ser um número inteiro."}), 403        
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1: 
             data = request.json
-
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
-
             data['distancia'] = float(data['distancia'])            
-
             if data['distancia'] <= 0 :
                 logging.debug(f"[ ERRO: Distância deve ser maior que zero ]")
                 return jsonify({"success": False, "message": "Distância deve ser maior que zero"}), 403
-
             cursor.execute("SELECT COUNT(*) FROM ponto WHERE idponto IN (?, ?)", (data['ponto_inicial'], data['ponto_final']))
             count = cursor.fetchone()[0]
-
             if count != 2:
                 logging.debug(f"[ ERRO! Pontos inicial e/ou final não existem!]")
                 return jsonify({"success": False, "message": "Pontos inicial e/ou final não existem"}), 403
-
             data['status'] = int(data['status'])
-
             if data['status'] not in [0, 1]:
                 logging.debug(f"[ ERRO! Status Inválido OLHE PROTOCOLO 0 OU 1 ]")
                 return jsonify({"success": False, "message": "Tipo de status inválido. O status de deve ser 0 ou 1."}), 403
-
             cursor.execute('''UPDATE segmento 
                             SET distancia=?, ponto_inicial=?, ponto_final=?, status=?, direcao=? 
                             WHERE idsegmento=?''', (data['distancia'], data['ponto_inicial'],
                                                     data['ponto_final'], data['status'], data['direcao'], segmento_id))
             conn.commit()
-
             logging.debug(f"[ RESPOSTA: Segmento atualizado com sucesso ]")
             return jsonify({'success': True, 'message': 'Segmento atualizado com sucesso'}), 200
         else:
@@ -899,9 +746,7 @@ def update_segmento(segmento_id):
     except Exception as e:
         return handle_exceptions(logging.error, e)     
 
-
-# Rota para deletar um segmento especifico
-@app.route('/segmentos/<segmento_id>', methods=['DELETE'])
+@app.route('/segmentos/<segmento_id>', methods=['DELETE']) # Rota para deletar um segmento especifico 
 @jwt_required()
 @verify_token
 def delete_segmento(segmento_id):
@@ -915,23 +760,17 @@ def delete_segmento(segmento_id):
             segmento_id = int(segmento_id)
         else:
             logging.debug(f"[ ERRO! Ponto inválido. Deve ser um número inteiro. ]")
-            return jsonify({"success": False, "message": "Ponto inválido. Deve ser um número inteiro."}), 403
-        
+            return jsonify({"success": False, "message": "Ponto inválido. Deve ser um número inteiro."}), 403        
         if 'tipo_usuario' in current_user and current_user['tipo_usuario'] == 1: 
-
             conn = sqlite3.connect('project_data.db')
             cursor = conn.cursor()
-
             cursor.execute("SELECT * FROM segmento WHERE idsegmento=?", (segmento_id,))
             segmento = cursor.fetchone()
-
             if not segmento:
                 logging.debug(f"[ RESPOSTA: Segmento não encontrado ]")
                 return jsonify({'success': False, 'message': 'Segmento não encontrado'}), 404
-
             cursor.execute('''DELETE FROM segmento WHERE idsegmento=?''', (segmento_id,))
             conn.commit()
-
             logging.debug(f"[ RESPOSTA: Segmento removido com sucesso ]")
             return jsonify({'success': True, 'message': 'Segmento removido com sucesso'}), 200
         else:
@@ -947,72 +786,52 @@ def delete_segmento(segmento_id):
 def get_nome_by_id(ponto_id):
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
-
     cursor.execute("SELECT nome FROM ponto WHERE idponto = ?", (ponto_id,))
     result = cursor.fetchone()
-
     conn.close()
-
     return result[0] if result else None
 
 def build_graph():
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
-
     cursor.execute("SELECT idponto, nome FROM ponto")
     pontos = cursor.fetchall()
-
     graph = defaultdict(dict)
-
-    for ponto_id, ponto_nome in pontos:
+    for ponto_nome in pontos:
         graph[ponto_nome] = {}
-
     cursor.execute("SELECT ponto_inicial, ponto_final, distancia, direcao, status FROM segmento")
     segmentos = cursor.fetchall()
-
     for ponto_inicial, ponto_final, distancia, direcao, status in segmentos:
         ponto_inicial_nome = get_nome_by_id(ponto_inicial)  
         ponto_final_nome = get_nome_by_id(ponto_final)
         graph[ponto_inicial_nome][ponto_final_nome] = (distancia, direcao, status)
         graph[ponto_final_nome][ponto_inicial_nome] = (distancia, direcao, status)
-
     conn.close()
-
     return graph
 
 def dijkstra(graph, start, end):
     heap = [(0, start, [])]
     visited = set()
-
     while heap:
         (cost, current, path) = heapq.heappop(heap)
-
         if current in visited:
             continue
-
         visited.add(current)
         path = path + [current]
-
         if current == end:
             return {"cost": cost, "path": path}
-
         for neighbor, (distance, direction, status) in graph[current].items():
             if neighbor not in visited and status != 0:  # Verifica se o status é diferente de 0
                 heapq.heappush(heap, (cost + distance, neighbor, path))
-
     return {"cost": float('inf'), "path": None}
 
 def calcular_rotas_dijkstra(origem_nome, destino_nome):
     graph = build_graph()
-
     if origem_nome not in graph or destino_nome not in graph:
         return {"success": False, "message": "Nomes de origem ou destino não encontrados no grafo"}, 404
-
     result = dijkstra(graph, origem_nome, destino_nome)
-
     if result["path"] is None:
         return {"success": False, "message": f"Não foi possível encontrar uma rota de {origem_nome} para {destino_nome}"}, 404
-
     path_info = []
     for i in range(len(result["path"]) - 1):
         ponto_inicial = result["path"][i]
@@ -1026,7 +845,6 @@ def calcular_rotas_dijkstra(origem_nome, destino_nome):
             "status": status
         }
         path_info.append(segmento_info)
-
     return {
         "success": True,
         "message": "Rota calculada com sucesso usando Dijkstra",
@@ -1038,50 +856,41 @@ def calcular_rotas_dijkstra(origem_nome, destino_nome):
 @verify_token
 def calcular_rotas():
     try:
+        current_user = get_jwt_identity()
+        user_info = get_user_info(current_user)
+        logging.debug(f"[ SOLICITAÇÃO! Solicitação de calcular rota solicitada pelo usuário {user_info} ]")        
         data = request.json
-        print(f"Data recebidos: {data}")
-
+        logging.debug(f"Data recebidos: {data}")
         origem_nome = data.get('origem', None)
         destino_nome = data.get('destino', None)
-
-        print(f"Origem: {origem_nome}, Destino: {destino_nome}")
-
+        logging.debug(f"Origem: {origem_nome}, Destino: {destino_nome}")
         if origem_nome is None or destino_nome is None:
             return jsonify({"success": False, "message": "Nomes de origem e destino são obrigatórios"}), 400
-
-        print(f"Calculando rota de {origem_nome} para {destino_nome}")
-
+        logging.debug(f"Calculando rota de {origem_nome} para {destino_nome}")
         result = calcular_rotas_dijkstra(origem_nome, destino_nome)
-
         if not result["success"]:
-            print(result["message"])
+            logging.debug(f"[ ERRO!: Rota Não foi Calculada! ]")
+            logging.debug(result["message"])
             return jsonify(result), 400
-
         rota_info = result["rota"]
-
-        print("Rota principal:")
-        print(rota_info)
-
+        logging.debug(f"Rota principal: {rota_info}")
+        logging.debug(f"[ RESPOSTA: Rota Calculada com Exito! ]")
         return jsonify(result), 200
-
     except Exception as e:
-        print(f"Erro ao calcular a rota: {str(e)}")
+        logging.debug(f"Erro ao calcular a rota: {str(e)}")
         return jsonify({"success": False, "message": "Erro ao calcular a rota"}), 400
 
 ###
 ### Servidor Flask
 ###
-
 if __name__ == '__main__':
     monitor_thread = threading.Thread(target=monitorar_usuarios_ativos)
     monitor_thread.daemon = True
     monitor_thread.start()
-
     if len(sys.argv) > 1:
         port = int(sys.argv[1])
     else:
         port = 5000
-
     try:
         app.run(debug=True, port=port, host='0.0.0.0')
     finally:
