@@ -1164,7 +1164,7 @@ let tbody = [];
                     existingTable.remove();
                     return;
                 }
-                if (response.success && response.rota) {
+                if (response.success) {
                     const rotas = response.rota;
                     let table = document.createElement('table');
                     table.id = tableId;
@@ -1189,8 +1189,6 @@ let tbody = [];
                     }
                     table.appendChild(thead);
                     toggleTable("tableRotas", true); // Mostra a tabela de rotas                    
-                } else {
-                    alert('Erro ao obter rota');
                 }
             }, error: function (error) {
                 const errorObject = JSON.parse(error.responseText);
