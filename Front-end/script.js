@@ -206,6 +206,7 @@ let tbody = [];
                         'Authorization': `Bearer ${token}`
                     },
                     success: function (response) {
+                        console.log(response);
                         alert(JSON.stringify(response));
                     },
                     error: function (error) {
@@ -244,6 +245,7 @@ let tbody = [];
                         'Authorization': `Bearer ${token}`
                     },
                     success: function (response) {
+                        console.log(response);
                         alert(JSON.stringify(response));
                         if (vaideletar == true) {
                             alert("Seu usuário foi deletado do sistema! Voltando a tela inicial!");
@@ -490,6 +492,7 @@ let tbody = [];
             },
             data: JSON.stringify(novoUsuario),
             success: function (response) {
+                console.log(response);
                 alert(JSON.stringify(response));
             },
             error: function (error) {
@@ -517,6 +520,7 @@ let tbody = [];
             },
             data: JSON.stringify({ nome }),
             success: function (response) {
+                console.log(response);
                 alert(JSON.stringify(response));
             },
             error: function (error) {
@@ -718,6 +722,7 @@ let tbody = [];
                 },
                 data: JSON.stringify({ nome: novoNome }),
                 success: function (response) {
+                    console.log(response);
                     alert(JSON.stringify(response));
                 },
                 error: function (error) {
@@ -740,6 +745,7 @@ let tbody = [];
                     'Authorization': `Bearer ${token}`
                 },
                 success: function (response) {
+                    console.log(response);
                     alert(JSON.stringify(response));
                 },
                 error: function (error) {
@@ -828,6 +834,7 @@ let tbody = [];
             },
             data: JSON.stringify(segmento),
             success: function (response) {
+                console.log(response);
                 alert(JSON.stringify(response));
             },
             error: function (error) {
@@ -968,14 +975,11 @@ let tbody = [];
                 clearTabela3();
                 if (response.segmento) {
                     const segmento = response.segmento;
-
                     let table = document.createElement('table');
                     table.id = 'tableSegmentos';
                     document.body.appendChild(table);
-
                     const thead = table.createTHead();
                     const row = thead.insertRow();
-
                     for (const key in segmento) {
                         if (segmento.hasOwnProperty(key)) {
                             const th = document.createElement('th');
@@ -1026,7 +1030,6 @@ let tbody = [];
             }
         }
         ponto_inicial = parseInt(ponto_inicial);
-
         let ponto_final;
         while(!ponto_final || !ponto_final.trim()){
             ponto_final = prompt('Informe o ponto_final para atualizar o segmento:');
@@ -1036,7 +1039,6 @@ let tbody = [];
             }
         }
         ponto_final = parseInt(ponto_final);
-
         let distancia;
         while (distancia === undefined || distancia === null) {
             const userInput = prompt('Informe a distância atualizada do Segmento:');
@@ -1049,8 +1051,7 @@ let tbody = [];
                 alert("Insira uma distância válida!");
                 distancia = undefined; // Define como undefined para continuar o loop
             }
-        }
-               
+        }      
         let status;
         while (status !== 0 && status !== 1) {
             const userInput = prompt('Informe o novo status para o segmento: [0 ou 1]');
@@ -1064,7 +1065,6 @@ let tbody = [];
                 status = undefined; // Define como undefined para continuar o loop
             }
         }
-
         let direcao;
         while(!direcao || !direcao.trim()){
             direcao = prompt('Informe o direcao para o segmento:');
@@ -1073,7 +1073,6 @@ let tbody = [];
                 return;
             }
         }
-
         const dadosAtualizados = {
             distancia: distancia,
             ponto_inicial: ponto_inicial,
@@ -1081,7 +1080,6 @@ let tbody = [];
             status: status,
             direcao: direcao
         };
-
         segmentoId = parseInt(segmentoId);
         $.ajax({
             url: `http://${IP}:${PORT}/segmentos/${segmentoId}`,
@@ -1092,6 +1090,7 @@ let tbody = [];
             },
             data: JSON.stringify(dadosAtualizados),
             success: function (response) {
+                console.log(response);
                 alert(JSON.stringify(response));
             },
             error: function (error) {
@@ -1113,6 +1112,7 @@ let tbody = [];
                     'Authorization': `Bearer ${token}`
                 },
                 success: function (response) {
+                    console.log(response);
                     alert(JSON.stringify(response));
                 },
                 error: function (error) {

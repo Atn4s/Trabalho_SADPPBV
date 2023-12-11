@@ -408,9 +408,17 @@ def deletar_usuario(registro):
                     logging.debug("[ RESPOSTA: Usuário deletado com sucesso! ]")
                     return code_response("Usuário deletado com sucesso!", 200)
                 elif int(current_user['tipo_usuario']) == int(1):
+                    usuarios_ativos_file = "usuarios_ativos.txt"
+                    if os.path.exists(usuarios_ativos_file):
+                        with open(usuarios_ativos_file, "r") as file:
+                            lines = file.readlines()
+                            for line in lines:
+                                if str(registro) in line:
+                                    logging.debug("[ ERRO! Acesso negado para deleção ]")
+                                    return jsonify({"success": False, "message": "Acesso negado. O usuário está com sessão ativa!."}), 403            
                     conn = sqlite3.connect('project_data.db')
                     cursor = conn.cursor()
-                    cursor.execute("DELETE FROM usuario WHERE registro=?", (registro,))
+                    cursor.execute("DELETE FROM usuario WHERE registro=?", (registro,))                    
                     rows_affected = cursor.rowcount  
                     if rows_affected > 0:
                         conn.commit()
@@ -433,10 +441,7 @@ def deletar_usuario(registro):
     except Exception as e:
         return handle_exceptions(logging.error, e)
 
-
-###
 ### ROTAS E OUTRAS CONFIGURAÇÕES!
-### 
 
 @app.route('/pontos', methods=['POST']) # Rota para cadastrar pontos
 @jwt_required()
@@ -779,10 +784,7 @@ def delete_segmento(segmento_id):
     except Exception as e:
         return handle_exceptions(logging.error, e)     
 
-###
 ### ROTA DIJKTSTRA
-###
-
 def get_nome_by_id(ponto_id):
     conn = sqlite3.connect('project_data.db')
     cursor = conn.cursor()
@@ -880,9 +882,7 @@ def calcular_rotas():
         logging.debug(f"Erro ao calcular a rota: {str(e)}")
         return jsonify({"success": False, "message": "Erro ao calcular a rota"}), 400
 
-###
 ### Servidor Flask
-###
 if __name__ == '__main__':
     monitor_thread = threading.Thread(target=monitorar_usuarios_ativos)
     monitor_thread.daemon = True
