@@ -42,15 +42,15 @@ def monitorar_usuarios_ativos():
                 usuarios_file.write("Usuários Ativos:\n")
                 usuarios_file.write(usuarios_info)
 
-def is_user_already_active(registro, endereco_ip): # Função para verificar se o usuário já está ativo
+def is_user_already_active(registro, endereco_ip):
     usuarios_ativos_file = "usuarios_ativos.txt"
     if os.path.exists(usuarios_ativos_file):
         with open(usuarios_ativos_file, "r") as file:
             lines = file.readlines()
-            for line in lines:
-                if str(registro) in line or str(registro) in line and str(endereco_ip) not in line:
+            for line in lines:                 # Verifica se a linha começa com o número do registro
+                if line.strip().startswith(f"{registro} "):
                     return True  # Usuário já está ativo
-    return False                
+    return False              
 
 def decode_token(encoded_token, allow_expired=False): # decodificação do token JWT!
     try:
